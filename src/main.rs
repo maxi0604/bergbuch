@@ -20,6 +20,13 @@ impl<'a> Scope<'a> {
     fn define(&mut self, id: Rc<str>, val: Val) {
         self.stack.insert(id, val);
     }
+
+    fn new_child(&self) -> Scope {
+        Scope {
+            stack: Default::default(),
+            parent: Some(self)
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -41,7 +48,7 @@ impl fmt::Display for Val {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Expr {
     Binary(Token, ExprRef, ExprRef),
     Unary(Token, ExprRef),
@@ -53,11 +60,12 @@ enum Expr {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Stmt {
     Print(ExprRef),
     Expr(ExprRef),
-    Declare(Rc<str>, Option<ExprRef>)
+    Declare(Rc<str>, Option<ExprRef>),
+    Block(Vec<Stmt>),
 }
 
 struct Interpreter<'a> {
@@ -92,6 +100,12 @@ impl Stmt {
                     scope.define(id.clone(), Val::Nil);
                 }
             }
+            Self::Block(stmts) => {
+                let mut child = scope.new_child();
+                for stmt in stmts.iter() {
+                    stmt.exec(&mut child)?;
+                }
+            }
         }
         Ok(())
     }
@@ -103,7 +117,7 @@ enum EvalError {
     UndefinedVariable
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum ParseErr {
     UnexpectedToken,
     UnmatchedPair,
@@ -252,9 +266,17 @@ impl<'a> Parser<'a> {
         res
     }
 
+    fn peek(&mut self) -> Option<&Token> {
+        self.tokens.get(self.index)
+    }
+
     fn advance(&mut self) -> Option<&Token> {
         self.index += 1;
         self.tokens.get(self.index - 1)
+    }
+
+    fn check(&mut self, tok: &Token) -> bool {
+        self.tokens.get(self.index) == Some(tok)
     }
 
     fn consume(&mut self, tok: &Token) -> Result<(), ParseErr> {
@@ -308,10 +330,23 @@ impl<'a> Parser<'a> {
 
     fn statement(&mut self) -> Result<Stmt, ParseErr> {
         if self.match_next_lits([Token::Print]) {
-            self.print_statement()
-        } else {
+            let val = self.print_statement();
+            val
+        } else if self.match_next_lits([Token::LeftBrace]) {
+            Ok(Stmt::Block(self.block()?))
+        }
+        else {
             self.expression_statement()
         }
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, ParseErr> {
+        let mut res = vec![];
+        while self.has_next() && !self.check(&Token::RightBrace) {
+            res.push(self.declaration()?.clone());
+        }
+        self.consume(&Token::RightBrace)?;
+        Ok(res)
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ParseErr> {
@@ -334,7 +369,7 @@ impl<'a> Parser<'a> {
         let expr = self.equality()?;
         if self.match_next_lits([Token::Equal]) {
             if let Token::Identifier(tok) = self.previous() {
-                Ok(Box::new(Expr::Assignment(tok.as_str().into(), expr)))
+                Ok(Box::new(Expr::Assignment(tok.clone(), expr)))
             } else {
                 Err(ParseErr::NotLvalue)
             }
@@ -406,13 +441,13 @@ impl<'a> Parser<'a> {
             Token::False => Expr::Literal(Val::Bool(false)),
             Token::Nil => Expr::Literal(Val::Nil),
             Token::Number(x) => Expr::Literal(Val::Num(*x)),
-            Token::String(x) => Expr::Literal(Val::String(x.as_str().into())),
+            Token::String(x) => Expr::Literal(Val::String(x.clone())),
             Token::LeftParen => {
                 let expr = *self.expression()?;
                 self.consume(&Token::RightParen)?;
                 expr
             }
-            Token::Identifier(x) => Expr::Variable(x.as_str().into()),
+            Token::Identifier(x) => Expr::Variable(x.clone()),
             // TODO: Error reporting, synchronize()
             _ => return Err(ParseErr::UnexpectedToken)
         };
@@ -444,8 +479,8 @@ enum Token {
     Less,
     LessEqual,
 
-    Identifier(String),
-    String(String),
+    Identifier(Rc<str>),
+    String(Rc<str>),
     Number(f64),
 
     And,
@@ -560,7 +595,7 @@ fn scan(code: &str) -> (Vec<Token>, bool) {
                     // Consume closing " after getting index
                     scanner.advance();
                     let string = range.iter().collect::<String>();
-                    Token::String(string)
+                    Token::String(string.into())
                 }
                 '0'..='9' => {
                     let start = scanner.index();
@@ -604,7 +639,7 @@ fn scan(code: &str) -> (Vec<Token>, bool) {
                         "true" => Token::True,
                         "var" => Token::Var,
                         "while" => Token::While,
-                        _ => Token::Identifier(string),
+                        _ => Token::Identifier(string.into()),
                     }
 
                 }
