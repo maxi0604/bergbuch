@@ -215,10 +215,6 @@ impl<'a> Scanner<'a> {
         self.str.get(self.index).copied()
     }
 
-    fn peek_nth(&self, n: usize) -> Option<char> {
-        self.str.get(self.index + n).copied()
-    }
-
     fn new(str: &'a [char]) -> Self {
         Self {
             index: 0,
@@ -239,32 +235,8 @@ struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn peek(&self) -> &Token {
-        &self.tokens[self.index]
-    }
-
     fn has_next(&self) -> bool {
         self.index < self.tokens.len()
-    }
-
-    fn check(&self, ttype: TokenType) -> bool {
-        if self.index >= self.tokens.len() {
-            return false;
-        }
-        self.tokens[self.index].class() == ttype
-    }
-
-    fn match_next<const N: usize>(&mut self, types: [TokenType; N]) -> bool {
-        if self.index >= self.tokens.len() {
-            return false;
-        }
-
-        let res = types.iter().any(|x| *x == self.tokens[self.index].class());
-        if res {
-            self.index += 1;
-        }
-
-        res
     }
 
     fn match_next_lits<const N: usize>(&mut self, ttypes: [Token; N]) -> bool {
@@ -449,14 +421,6 @@ impl<'a> Parser<'a> {
     }
 }
 
-#[derive(PartialEq, Clone, Debug)]
-enum TokenType {
-    Literal(Token),
-    Identifier,
-    String,
-    Number
-}
-
 #[derive(Debug, Clone, PartialEq)]
 enum Token {
     LeftParen,
@@ -500,17 +464,6 @@ enum Token {
     True,
     Var,
     While
-}
-
-impl Token {
-    fn class(&self) -> TokenType {
-        match self {
-            Self::Identifier(_) => TokenType::Identifier,
-            Self::String(_) => TokenType::String,
-            Self::Number(_) => TokenType::Number,
-            _ => TokenType::Literal(self.clone())
-        }
-    }
 }
 
 fn main() {
