@@ -144,8 +144,31 @@ impl Expr {
                     (Token::Minus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a - b)),
                     (Token::Star, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a * b)),
                     (Token::Slash, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a / b)),
+
+                    (Token::Less, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a < b)),
+                    (Token::LessEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a <= b)),
+                    (Token::EqualEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a == b)),
+                    (Token::GreaterEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a >= b)),
+                    (Token::Greater, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a > b)),
+
                     (Token::Or, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
                     (Token::And, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
+
+                    (Token::Plus, Val::String(a), Val::String(b)) => {
+                        let mut c = a.to_string();
+                        c.push_str(&b);
+                        Ok(Val::String(c.into()))
+                    },
+
+                    (Token::EqualEqual, Val::String(a), Val::String(b)) => Ok(Val::Bool(a == b)),
+                    (Token::EqualEqual, Val::Bool(a), Val::Bool(b)) => Ok(Val::Bool(a == b)),
+                    (Token::EqualEqual, Val::Nil, Val::Nil) => Ok(Val::Bool(true)),
+                    (Token::EqualEqual, _, _) => Ok(Val::Bool(false)),
+
+                    (Token::BangEqual, Val::String(a), Val::String(b)) => Ok(Val::Bool(a != b)),
+                    (Token::BangEqual, Val::Bool(a), Val::Bool(b)) => Ok(Val::Bool(a != b)),
+                    (Token::BangEqual, Val::Nil, Val::Nil) => Ok(Val::Bool(false)),
+                    (Token::BangEqual, _, _) => Ok(Val::Bool(true)),
                     _ => Err(EvalError::TypeError)
                 }
             }
@@ -529,13 +552,11 @@ fn run_prompt() {
 
 fn run(code: &str, interpreter: &mut Interpreter) {
     let (scanned, err) = scan(code);
-    dbg!(&scanned, &err);
     let mut parser = Parser::new(&scanned);
     let parsed = parser.program();
-    dbg!(&parsed);
     if let Ok(parsed) = parsed {
         if let Err(err) = interpreter.interpret(parsed) {
-            dbg!(err);
+            println!("{}", err);
         }
     }
 }
