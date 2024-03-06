@@ -1,9 +1,9 @@
 use std::{
-    env::args_os, fmt::format, fs, io::{stdin, stdout, Write}, path::Path
+    env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path
 };
 
 struct Scanner<'a> {
-    // Sucky string representation given that we don't usually need to index further than 2 away
+    // TODO: Sucky string representation given that we don't usually need to index further than 2 away
     // but it will have to do.
     str: &'a [char],
     index: usize,
@@ -151,6 +151,24 @@ fn scan(code: &str) -> (Vec<Token>, bool) {
                 '!' => if scanner.match_next('=') { Token::BangEqual } else { Token::Bang },
                 '\n' => { line += 1; continue; }
                 '\r' | '\t' | ' ' => continue,
+                '"' => {
+                    let start = scanner.index();
+
+                    while scanner.peek().is_some_and(|x| x != '"') {
+                        scanner.advance();
+                    }
+
+                    if scanner.peek().is_none() {
+                        report_error(line, "Unclosed string");
+                        continue;
+                    }
+
+                    let range = &chars[start..scanner.index()];
+                    // Consume closing " after getting index
+                    scanner.advance();
+                    let string = range.iter().collect::<String>();
+                    Token::String(string)
+                }
                 '0'..='9' => {
                     let start = scanner.index();
                     while matches!(scanner.peek(), Some('.' | '0'..='9')) {
