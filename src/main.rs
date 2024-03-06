@@ -2,6 +2,24 @@ use std::{
     env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path
 };
 
+type ExprRef = Box<Expr>;
+
+#[derive(Debug)]
+enum Val {
+    String(String),
+    Number(f64),
+    Boolean(bool),
+    Nil
+}
+
+#[derive(Debug)]
+enum Expr {
+    Binary(Token, ExprRef, ExprRef),
+    Unary(Token, ExprRef),
+    Literal(Val),
+    Grouping(ExprRef)
+}
+
 struct Scanner<'a> {
     // TODO: Sucky string representation given that we don't usually need to index further than 2 away
     // but it will have to do.
@@ -43,7 +61,151 @@ impl<'a> Scanner<'a> {
     }
 }
 
-#[derive(Debug)]
+struct Parser<'a> {
+    // TODO: Sucky string representation given that we don't usually need to index further than 2 away
+    // but it will have to do.
+    tokens: &'a [Token],
+    index: usize,
+}
+
+impl<'a> Parser<'a> {
+    fn peek(&self) -> &Token {
+        &self.tokens[self.index]
+    }
+
+    fn check(&self, ttype: TokenType) -> bool {
+        self.tokens[self.index].class() == ttype
+    }
+
+    fn match_next<const N: usize>(&mut self, types: [TokenType; N]) -> bool {
+        if self.index >= self.tokens.len() {
+            return false;
+        }
+
+        let res = types.iter().any(|x| *x == self.tokens[self.index].class());
+        if res {
+            self.index += 1;
+        }
+
+        res
+    }
+
+
+    fn match_next_lits<const N: usize>(&mut self, ttypes: [Token; N]) -> bool {
+        if self.index >= self.tokens.len() {
+            return false;
+        }
+
+        let res = ttypes.iter().any(|x| *x == self.tokens[self.index]);
+        if res {
+            self.index += 1;
+        }
+
+        res
+    }
+
+    fn advance(&mut self) -> &Token {
+        self.index += 1;
+        &self.tokens[self.index - 1]
+    }
+
+    fn previous(&self) -> &Token {
+        &self.tokens[self.index - 1]
+    }
+
+    fn new(tokens: &[Token]) -> Parser {
+        Parser {
+            index: 0,
+            tokens
+        }
+    }
+    fn parse(&mut self) -> ExprRef {
+        self.equality()
+    }
+
+    fn equality(&mut self) -> ExprRef {
+        let mut expr = self.comparison();
+
+        while self.match_next_lits([Token::BangEqual, Token::EqualEqual]) {
+            // TODO: op.clone clones the string literal. Maybe refcount these.
+            let op = self.previous().clone();
+            let right = self.comparison();
+            expr = Box::new(Expr::Binary(op, expr, right));
+        }
+
+        expr
+    }
+
+    fn comparison(&mut self) -> ExprRef {
+        let mut expr = self.term();
+        while self.match_next_lits([Token::Greater, Token::GreaterEqual, Token::Less, Token::LessEqual]) {
+            let op = self.previous().clone();
+            let right = self.term();
+            expr = Box::new(Expr::Binary(op, expr, right));
+        }
+
+        expr
+    }
+
+    fn term(&mut self) -> ExprRef {
+        let mut expr = self.factor();
+
+        while self.match_next_lits([Token::Plus, Token::Minus]) {
+            let op = self.previous().clone();
+            let right = self.factor();
+            expr = Box::new(Expr::Binary(op, expr, right));
+        }
+
+
+        expr
+    }
+
+    fn factor(&mut self) -> ExprRef {
+        let mut expr = self.unary();
+
+        while self.match_next_lits([Token::Slash, Token::Star]) {
+            let op = self.previous().clone();
+            let right = self.unary();
+            expr = Box::new(Expr::Binary(op, expr, right));
+        }
+
+        expr
+    }
+
+    fn unary(&mut self) -> ExprRef {
+        if self.match_next_lits([Token::Slash, Token::Star]) {
+            Box::new(Expr::Unary(self.previous().clone(), self.primary()))
+        } else {
+            self.primary()
+        }
+    }
+
+    fn primary(&mut self) -> ExprRef {
+        let res = match self.advance() {
+            Token::True => Expr::Literal(Val::Boolean(true)),
+            Token::False => Expr::Literal(Val::Boolean(false)),
+            Token::Nil => Expr::Literal(Val::Nil),
+            Token::Number(x) => Expr::Literal(Val::Number(*x)),
+            Token::String(x) => Expr::Literal(Val::String(x.to_string())),
+            Token::LeftParen => {
+                Expr::Literal(Val::Nil)
+            }
+            _ => Expr::Literal(Val::Nil)
+        };
+
+        Box::new(res)
+    }
+}
+
+#[derive(PartialEq, Clone, Debug)]
+enum TokenType {
+    Literal(Token),
+    Identifier,
+    String,
+    Number
+}
+
+#[derive(Debug, Clone, PartialEq)]
 enum Token {
     LeftParen,
     RightParen,
@@ -88,6 +250,17 @@ enum Token {
     While
 }
 
+impl Token {
+    fn class(&self) -> TokenType {
+        match self {
+            Self::Identifier(_) => TokenType::Identifier,
+            Self::String(_) => TokenType::String,
+            Self::Number(_) => TokenType::Number,
+            _ => TokenType::Literal(self.clone())
+        }
+    }
+}
+
 fn main() {
     if let Some(arg) = args_os().nth(1) {
         run_file(Path::new(&arg));
@@ -121,9 +294,13 @@ fn run_prompt() {
 }
 
 fn run(code: &str) {
-    let scanned = scan(code);
-    dbg!(scanned);
+    let (scanned, err) = scan(code);
+    dbg!(&scanned, &err);
+    let mut parser = Parser::new(&scanned);
+    let parsed = parser.parse();
+    dbg!(&parsed);
 }
+
 
 fn scan(code: &str) -> (Vec<Token>, bool) {
     let chars = code.chars().collect::<Vec<_>>();
