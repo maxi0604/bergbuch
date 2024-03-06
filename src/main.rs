@@ -112,7 +112,10 @@ enum ParseErr {
 
 impl Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Type error.")
+        match self {
+            Self::TypeError => write!(f, "Type error."),
+            Self::UndefinedVariable => write!(f, "Undefined variable.")
+        }
     }
 }
 
