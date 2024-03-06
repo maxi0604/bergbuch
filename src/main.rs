@@ -29,7 +29,8 @@ enum Expr {
     Binary(Token, ExprRef, ExprRef),
     Unary(Token, ExprRef),
     Literal(Val),
-    Grouping(ExprRef)
+    // This seems unnecessary so far.
+    // Grouping(ExprRef)
 }
 
 #[derive(Debug)]
@@ -85,8 +86,8 @@ impl Expr {
                     _ => Err(EvalError::TypeError)
                 }
             }
-            Self::Grouping(exp) => exp.eval(),
-            _ => Err(EvalError::TypeError)
+            // Self::Grouping(exp) => exp.eval(),
+            // _ => Err(EvalError::TypeError)
         }
     }
 }
@@ -269,7 +270,7 @@ impl<'a> Parser<'a> {
             Token::String(x) => Expr::Literal(Val::String(x.to_string())),
             Token::LeftParen => {
                 let expr = *self.expression();
-                self.consume(&Token::LeftParen);
+                self.consume(&Token::RightParen);
                 expr
             }
             // TODO: Error reporting, synchronize()
