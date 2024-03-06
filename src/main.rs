@@ -1,14 +1,30 @@
 use core::fmt;
 use std::{
-    env::args_os, fmt::Display, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path,
+    collections::HashMap, env::args_os, fmt::Display, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
 };
 
 type ExprRef = Box<Expr>;
-type ParseResult = Result<ExprRef, ParseErr>;
+type ExprResult = Result<ExprRef, ParseErr>;
+
+#[derive(Debug, Default)]
+struct Scope<'a> {
+    stack: HashMap<Rc<str>, Val>,
+    parent: Option<&'a Scope<'a>>
+}
+
+impl<'a> Scope<'a> {
+    fn get(&self, id: &str) -> Option<&Val> {
+        self.stack.get(id).or_else(|| self.parent?.get(id))
+    }
+
+    fn define(&mut self, id: Rc<str>, val: Val) {
+        self.stack.insert(id, val);
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 enum Val {
-    String(String),
+    String(Rc<str>),
     Num(f64),
     Bool(bool),
     Nil
@@ -30,20 +46,68 @@ enum Expr {
     Binary(Token, ExprRef, ExprRef),
     Unary(Token, ExprRef),
     Literal(Val),
+    Variable(Rc<str>),
+    Assignment(Rc<str>, ExprRef)
     // This seems unnecessary so far.
     // Grouping(ExprRef)
+}
+
+
+#[derive(Debug)]
+enum Stmt {
+    Print(ExprRef),
+    Expr(ExprRef),
+    Declare(Rc<str>, Option<ExprRef>)
+}
+
+struct Interpreter<'a> {
+    global_scope: Scope<'a>
+}
+
+impl<'a> Interpreter<'a> {
+    fn interpret(&mut self, program: impl IntoIterator<Item = Stmt>) -> Result<(), EvalError> {
+        for stmt in program.into_iter() {
+            stmt.exec(&mut self.global_scope)?;
+        }
+        Ok(())
+    }
+
+    fn new() -> Interpreter<'a> {
+        Interpreter {
+            global_scope: Default::default()
+        }
+    }
+}
+
+impl Stmt {
+    fn exec<'a>(&self, scope: &mut Scope<'a>) -> Result<(), EvalError> {
+        match self {
+            Self::Print(expr) => println!("{}", expr.eval(scope)?),
+            Self::Expr(expr) => { expr.eval(scope)?; },
+            Self::Declare(id, val) => {
+                if let Some(val) = val {
+                    let val = val.eval(scope)?;
+                    scope.define(id.clone(), val);
+                } else {
+                    scope.define(id.clone(), Val::Nil);
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
 enum EvalError {
     TypeError,
-    ParseError(ParseErr)
+    UndefinedVariable
 }
 
 #[derive(Debug)]
 enum ParseErr {
     UnexpectedToken,
     UnmatchedPair,
+    NotLvalue,
 }
 
 impl Display for EvalError {
@@ -57,23 +121,24 @@ impl Display for ParseErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnexpectedToken => write!(f, "Unexpected token."),
-            Self::UnmatchedPair => write!(f, "Unmatched pair.")
+            Self::UnmatchedPair => write!(f, "Unmatched pair."),
+            Self::NotLvalue => write!(f, "Left side is not assignable."),
         }
     }
 }
 
 impl Expr {
-    fn eval(&self) -> Result<Val, EvalError> {
+    fn eval(&self, scope: &mut Scope) -> Result<Val, EvalError> {
         match self {
             Self::Literal(v) => Ok(v.clone()),
             Self::Binary(op, x, y) => {
-                let l = x.eval()?;
+                let l = x.eval(scope)?;
 
                 if *op == Token::Or && l == Val::Bool(true) || *op == Token::And && l == Val::Bool(false) {
                     return Ok(l);
                 }
 
-                let r = y.eval()?;
+                let r = y.eval(scope)?;
                 match (op, l, r) {
                     (Token::Plus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a + b)),
                     (Token::Minus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a - b)),
@@ -85,12 +150,20 @@ impl Expr {
                 }
             }
             Self::Unary(op, x) => {
-                let l = x.eval()?;
+                let l = x.eval(scope)?;
                 match (op, l) {
                     (Token::Bang, Val::Bool(a)) => Ok(Val::Bool(!a)),
                     (Token::Minus, Val::Num(a)) => Ok(Val::Num(-a)),
                     _ => Err(EvalError::TypeError)
                 }
+            }
+            Self::Variable(id) => {
+                scope.get(id).ok_or(EvalError::UndefinedVariable).cloned()
+            },
+            Self::Assignment(id, val) => {
+                let r = val.eval(scope)?;
+                scope.define(id.clone(), r.clone());
+                Ok(r)
             }
             // Self::Grouping(exp) => exp.eval(),
             // _ => Err(EvalError::TypeError)
@@ -150,7 +223,14 @@ impl<'a> Parser<'a> {
         &self.tokens[self.index]
     }
 
+    fn has_next(&self) -> bool {
+        self.index < self.tokens.len()
+    }
+
     fn check(&self, ttype: TokenType) -> bool {
+        if self.index >= self.tokens.len() {
+            return false;
+        }
         self.tokens[self.index].class() == ttype
     }
 
@@ -206,15 +286,72 @@ impl<'a> Parser<'a> {
     }
 
     // Parsing the actual grammar.
-    fn program(&mut self) -> ParseResult {
-        self.equality()
-    }
-    // Parsing the actual grammar.
-    fn expression(&mut self) -> ParseResult {
-        self.equality()
+    fn program(&mut self) -> Result<Vec<Stmt>, ParseErr> {
+        let mut res = vec![];
+        while self.has_next() {
+            res.push(self.declaration()?);
+        }
+        Ok(res)
     }
 
-    fn equality(&mut self) -> ParseResult {
+    fn declaration(&mut self) -> Result<Stmt, ParseErr> {
+        if self.match_next_lits([Token::Var]) {
+            if let Some(Token::Identifier(id)) = self.advance() {
+                let id = id.clone();
+                if self.match_next_lits([Token::Equal]) {
+                    let value = self.equality()?;
+                    self.consume(&Token::Semicolon)?;
+                    Ok(Stmt::Declare(id.into(), Some(value)))
+                } else {
+                    self.consume(&Token::Semicolon)?;
+                    Ok(Stmt::Declare(id.into(), None))
+                }
+            } else {
+                Err(ParseErr::NotLvalue)
+            }
+        } else {
+            self.statement()
+        }
+    }
+
+    fn statement(&mut self) -> Result<Stmt, ParseErr> {
+        if self.match_next_lits([Token::Print]) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, ParseErr> {
+        let res = self.expression();
+        self.consume(&Token::Semicolon)?;
+        Ok(Stmt::Print(res?))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, ParseErr> {
+        let res = self.expression();
+        self.consume(&Token::Semicolon)?;
+        Ok(Stmt::Expr(res?))
+    }
+
+    fn expression(&mut self) -> ExprResult {
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> ExprResult {
+        let expr = self.equality()?;
+        if self.match_next_lits([Token::Equal]) {
+            if let Token::Identifier(tok) = self.previous() {
+                Ok(Box::new(Expr::Assignment(tok.as_str().into(), expr)))
+            } else {
+                Err(ParseErr::NotLvalue)
+            }
+        } else {
+            Ok(expr)
+        }
+    }
+
+    fn equality(&mut self) -> ExprResult {
         let mut expr = self.comparison();
 
         while self.match_next_lits([Token::BangEqual, Token::EqualEqual]) {
@@ -227,7 +364,7 @@ impl<'a> Parser<'a> {
         expr
     }
 
-    fn comparison(&mut self) -> ParseResult {
+    fn comparison(&mut self) -> ExprResult {
         let mut expr = self.term();
         while self.match_next_lits([Token::Greater, Token::GreaterEqual, Token::Less, Token::LessEqual]) {
             let op = self.previous().clone();
@@ -238,7 +375,7 @@ impl<'a> Parser<'a> {
         expr
     }
 
-    fn term(&mut self) -> ParseResult {
+    fn term(&mut self) -> ExprResult {
         let mut expr = self.factor();
 
         while self.match_next_lits([Token::Plus, Token::Minus]) {
@@ -251,7 +388,7 @@ impl<'a> Parser<'a> {
         expr
     }
 
-    fn factor(&mut self) -> ParseResult {
+    fn factor(&mut self) -> ExprResult {
         let mut expr = self.unary();
 
         while self.match_next_lits([Token::Slash, Token::Star]) {
@@ -277,14 +414,15 @@ impl<'a> Parser<'a> {
             Token::False => Expr::Literal(Val::Bool(false)),
             Token::Nil => Expr::Literal(Val::Nil),
             Token::Number(x) => Expr::Literal(Val::Num(*x)),
-            Token::String(x) => Expr::Literal(Val::String(x.to_string())),
+            Token::String(x) => Expr::Literal(Val::String(x.as_str().into())),
             Token::LeftParen => {
                 let expr = *self.expression()?;
                 self.consume(&Token::RightParen)?;
                 expr
             }
+            Token::Identifier(x) => Expr::Variable(x.as_str().into()),
             // TODO: Error reporting, synchronize()
-            _ => Expr::Literal(Val::Nil)
+            _ => return Err(ParseErr::UnexpectedToken)
         };
 
         Ok(Box::new(res))
@@ -365,7 +503,8 @@ fn main() {
 
 fn run_file(path: &Path) {
     let content = fs::read_to_string(path).expect("Error reading file.");
-    run(content.as_str());
+    let mut interpreter = Interpreter::new();
+    run(content.as_str(), &mut interpreter);
 }
 
 fn report_error(line: u64, err: &str) {
@@ -373,13 +512,14 @@ fn report_error(line: u64, err: &str) {
 }
 
 fn run_prompt() {
+    let mut interpreter = Interpreter::new();
     if stdin().is_terminal() {
         print!("> ");
         stdout().flush().unwrap();
     }
 
     for line in stdin().lines() {
-        run(&line.expect("Error reading stdin"));
+        run(&line.expect("Error reading stdin"), &mut interpreter);
         if stdin().is_terminal() {
             print!("> ");
             stdout().flush().unwrap();
@@ -387,14 +527,16 @@ fn run_prompt() {
     }
 }
 
-fn run(code: &str) {
+fn run(code: &str, interpreter: &mut Interpreter) {
     let (scanned, err) = scan(code);
     dbg!(&scanned, &err);
     let mut parser = Parser::new(&scanned);
-    let parsed = parser.expression();
+    let parsed = parser.program();
     dbg!(&parsed);
     if let Ok(parsed) = parsed {
-        dbg!(parsed.eval());
+        if let Err(err) = interpreter.interpret(parsed) {
+            dbg!(err);
+        }
     }
 }
 
