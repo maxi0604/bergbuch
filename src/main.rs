@@ -1,15 +1,27 @@
+use core::fmt;
 use std::{
-    env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path
+    env::args_os, fmt::Display, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path,
 };
 
 type ExprRef = Box<Expr>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 enum Val {
     String(String),
-    Number(f64),
-    Boolean(bool),
+    Num(f64),
+    Bool(bool),
     Nil
+}
+
+impl fmt::Display for Val {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::String(x) => write!(f, "{}", x),
+            Self::Num(x) => write!(f, "{}", x),
+            Self::Bool(x) => write!(f, "{}", x),
+            Self::Nil => write!(f, "nil")
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -20,6 +32,64 @@ enum Expr {
     Grouping(ExprRef)
 }
 
+#[derive(Debug)]
+enum EvalError {
+    TypeError,
+}
+
+#[derive(Debug)]
+enum ParseErr {
+    UnmatchedPair,
+}
+
+impl Display for EvalError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Type error.")
+    }
+}
+
+
+impl Display for ParseErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Unmatched pair.")
+    }
+}
+
+impl Expr {
+    fn eval(&self) -> Result<Val, EvalError> {
+        match self {
+            Self::Literal(v) => Ok(v.clone()),
+            Self::Binary(op, x, y) => {
+                let l = x.eval()?;
+
+                if *op == Token::Or && l == Val::Bool(true) || *op == Token::And && l == Val::Bool(false) {
+                    return Ok(l);
+                }
+
+                let r = y.eval()?;
+                match (op, l, r) {
+                    (Token::Plus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a + b)),
+                    (Token::Minus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a - b)),
+                    (Token::Star, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a * b)),
+                    (Token::Slash, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a / b)),
+                    (Token::Or, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
+                    (Token::And, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
+                    _ => Err(EvalError::TypeError)
+                }
+            }
+            Self::Unary(op, x) => {
+                let l = x.eval()?;
+                match (op, l) {
+                    (Token::Bang, Val::Bool(a)) => Ok(Val::Bool(!a)),
+                    (Token::Minus, Val::Num(a)) => Ok(Val::Num(-a)),
+                    _ => Err(EvalError::TypeError)
+                }
+            }
+            Self::Grouping(exp) => exp.eval(),
+            _ => Err(EvalError::TypeError)
+        }
+    }
+}
 struct Scanner<'a> {
     // TODO: Sucky string representation given that we don't usually need to index further than 2 away
     // but it will have to do.
@@ -90,7 +160,6 @@ impl<'a> Parser<'a> {
         res
     }
 
-
     fn match_next_lits<const N: usize>(&mut self, ttypes: [Token; N]) -> bool {
         if self.index >= self.tokens.len() {
             return false;
@@ -109,6 +178,15 @@ impl<'a> Parser<'a> {
         &self.tokens[self.index - 1]
     }
 
+    fn consume(&mut self, tok: &Token) -> Result<(), ParseErr> {
+        if self.tokens.get(self.index) != Some(tok) {
+            return Err(ParseErr::UnmatchedPair);
+        }
+        self.index += 1;
+
+        Ok(())
+    }
+
     fn previous(&self) -> &Token {
         &self.tokens[self.index - 1]
     }
@@ -119,7 +197,9 @@ impl<'a> Parser<'a> {
             tokens
         }
     }
-    fn parse(&mut self) -> ExprRef {
+
+    // Parsing the actual grammar.
+    fn expression(&mut self) -> ExprRef {
         self.equality()
     }
 
@@ -173,7 +253,7 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> ExprRef {
-        if self.match_next_lits([Token::Slash, Token::Star]) {
+        if self.match_next_lits([Token::Bang, Token::Minus]) {
             Box::new(Expr::Unary(self.previous().clone(), self.primary()))
         } else {
             self.primary()
@@ -182,14 +262,17 @@ impl<'a> Parser<'a> {
 
     fn primary(&mut self) -> ExprRef {
         let res = match self.advance() {
-            Token::True => Expr::Literal(Val::Boolean(true)),
-            Token::False => Expr::Literal(Val::Boolean(false)),
+            Token::True => Expr::Literal(Val::Bool(true)),
+            Token::False => Expr::Literal(Val::Bool(false)),
             Token::Nil => Expr::Literal(Val::Nil),
-            Token::Number(x) => Expr::Literal(Val::Number(*x)),
+            Token::Number(x) => Expr::Literal(Val::Num(*x)),
             Token::String(x) => Expr::Literal(Val::String(x.to_string())),
             Token::LeftParen => {
-                Expr::Literal(Val::Nil)
+                let expr = *self.expression();
+                self.consume(&Token::LeftParen);
+                expr
             }
+            // TODO: Error reporting, synchronize()
             _ => Expr::Literal(Val::Nil)
         };
 
@@ -297,8 +380,9 @@ fn run(code: &str) {
     let (scanned, err) = scan(code);
     dbg!(&scanned, &err);
     let mut parser = Parser::new(&scanned);
-    let parsed = parser.parse();
+    let parsed = parser.expression();
     dbg!(&parsed);
+    dbg!(parsed.eval());
 }
 
 
