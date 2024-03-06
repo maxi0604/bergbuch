@@ -50,8 +50,8 @@ impl fmt::Display for Val {
 
 #[derive(Debug, Clone)]
 enum Expr {
-    Binary(Token, ExprRef, ExprRef),
-    Unary(Token, ExprRef),
+    Binary(TokenType, ExprRef, ExprRef),
+    Unary(TokenType, ExprRef),
     Literal(Val),
     Variable(Rc<str>),
     Assignment(Rc<str>, ExprRef)
@@ -117,13 +117,26 @@ enum EvalError {
     UndefinedVariable
 }
 
+struct ParseErr {
+    data: ParseErrType,
+    source: Option<Token>,
+}
+
 #[derive(Debug, Clone)]
-enum ParseErr {
+enum ParseErrType {
     UnexpectedToken,
     UnmatchedPair,
     NotLvalue,
 }
 
+impl ParseErr {
+    fn new(data: ParseErrType, source: Option<Token>) -> Self {
+        ParseErr {
+            data,
+            source
+        }
+    }
+}
 impl Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -136,10 +149,13 @@ impl Display for EvalError {
 
 impl Display for ParseErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnexpectedToken => write!(f, "Unexpected token."),
-            Self::UnmatchedPair => write!(f, "Unmatched pair."),
-            Self::NotLvalue => write!(f, "Left side is not assignable."),
+        if let Some(src) = self.source {
+            write!(f, "[line {}] ", src.line);
+        }
+        match self.data {
+            ParseErrType::UnexpectedToken => write!(f, "Unexpected token."),
+            ParseErrType::UnmatchedPair => write!(f, "Unmatched pair."),
+            ParseErrType::NotLvalue => write!(f, "Left side is not assignable."),
         }
     }
 }
@@ -151,34 +167,34 @@ impl Expr {
             Self::Binary(op, x, y) => {
                 let l = x.eval(scope)?;
 
-                if *op == Token::Or && l == Val::Bool(true) || *op == Token::And && l == Val::Bool(false) {
+                if *op == TokenType::Or && l == Val::Bool(true) || *op == TokenType::And && l == Val::Bool(false) {
                     return Ok(l);
                 }
 
                 let r = y.eval(scope)?;
                 match (op, l, r) {
-                    (Token::Plus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a + b)),
-                    (Token::Minus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a - b)),
-                    (Token::Star, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a * b)),
-                    (Token::Slash, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a / b)),
+                    (TokenType::Plus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a + b)),
+                    (TokenType::Minus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a - b)),
+                    (TokenType::Star, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a * b)),
+                    (TokenType::Slash, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a / b)),
 
-                    (Token::Less, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a < b)),
-                    (Token::LessEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a <= b)),
-                    (Token::EqualEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a == b)),
-                    (Token::GreaterEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a >= b)),
-                    (Token::Greater, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a > b)),
+                    (TokenType::Less, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a < b)),
+                    (TokenType::LessEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a <= b)),
+                    (TokenType::EqualEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a == b)),
+                    (TokenType::GreaterEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a >= b)),
+                    (TokenType::Greater, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a > b)),
 
-                    (Token::Or, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
-                    (Token::And, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
+                    (TokenType::Or, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
+                    (TokenType::And, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
 
-                    (Token::Plus, Val::String(a), Val::String(b)) => {
+                    (TokenType::Plus, Val::String(a), Val::String(b)) => {
                         let mut c = a.to_string();
                         c.push_str(&b);
                         Ok(Val::String(c.into()))
                     },
 
-                    (Token::EqualEqual, x, y) => Ok(Val::Bool(x == y)),
-                    (Token::BangEqual, x, y) => Ok(Val::Bool(x != y)),
+                    (TokenType::EqualEqual, x, y) => Ok(Val::Bool(x == y)),
+                    (TokenType::BangEqual, x, y) => Ok(Val::Bool(x != y)),
 
                     _ => Err(EvalError::TypeError)
                 }
@@ -186,8 +202,8 @@ impl Expr {
             Self::Unary(op, x) => {
                 let l = x.eval(scope)?;
                 match (op, l) {
-                    (Token::Bang, Val::Bool(a)) => Ok(Val::Bool(!a)),
-                    (Token::Minus, Val::Num(a)) => Ok(Val::Num(-a)),
+                    (TokenType::Bang, Val::Bool(a)) => Ok(Val::Bool(!a)),
+                    (TokenType::Minus, Val::Num(a)) => Ok(Val::Num(-a)),
                     _ => Err(EvalError::TypeError)
                 }
             }
@@ -253,12 +269,12 @@ impl<'a> Parser<'a> {
         self.index < self.tokens.len()
     }
 
-    fn match_next_lits<const N: usize>(&mut self, ttypes: [Token; N]) -> bool {
+    fn match_next_lits<const N: usize>(&mut self, ttypes: [TokenType; N]) -> bool {
         if self.index >= self.tokens.len() {
             return false;
         }
 
-        let res = ttypes.iter().any(|x| *x == self.tokens[self.index]);
+        let res = ttypes.iter().any(|x| *x == self.tokens[self.index].data);
         if res {
             self.index += 1;
         }
@@ -275,13 +291,15 @@ impl<'a> Parser<'a> {
         self.tokens.get(self.index - 1)
     }
 
-    fn check(&mut self, tok: &Token) -> bool {
-        self.tokens.get(self.index) == Some(tok)
+    fn check(&mut self, tok: &TokenType) -> bool {
+        self.tokens.get(self.index).map(|x| x.data) == Some(tok.clone())
     }
 
-    fn consume(&mut self, tok: &Token) -> Result<(), ParseErr> {
-        if self.tokens.get(self.index) != Some(tok) {
-            return Err(ParseErr::UnmatchedPair);
+    fn consume(&mut self, tok: &TokenType) -> Result<(), ParseErr> {
+
+        let data = self.tokens.get(self.index).map(|x| x.data);
+        if data != Some(tok.clone()) {
+            return Err(ParseErr::new(ParseErrType::UnmatchedPair, self.peek().cloned()))
         }
         self.index += 1;
 
@@ -309,19 +327,19 @@ impl<'a> Parser<'a> {
     }
 
     fn declaration(&mut self) -> Result<Stmt, ParseErr> {
-        if self.match_next_lits([Token::Var]) {
-            if let Some(Token::Identifier(id)) = self.advance() {
+        if self.match_next_lits([TokenType::Var]) {
+            if let Some(TokenType::Identifier(id)) = self.advance().map(|x| x.data) {
                 let id = id.clone();
-                if self.match_next_lits([Token::Equal]) {
+                if self.match_next_lits([TokenType::Equal]) {
                     let value = self.equality()?;
-                    self.consume(&Token::Semicolon)?;
+                    self.consume(&TokenType::Semicolon)?;
                     Ok(Stmt::Declare(id.into(), Some(value)))
                 } else {
-                    self.consume(&Token::Semicolon)?;
+                    self.consume(&TokenType::Semicolon)?;
                     Ok(Stmt::Declare(id.into(), None))
                 }
             } else {
-                Err(ParseErr::NotLvalue)
+                Err(ParseErr::new(ParseErrType::NotLvalue, self.peek().cloned()))
             }
         } else {
             self.statement()
@@ -329,10 +347,10 @@ impl<'a> Parser<'a> {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseErr> {
-        if self.match_next_lits([Token::Print]) {
+        if self.match_next_lits([TokenType::Print]) {
             let val = self.print_statement();
             val
-        } else if self.match_next_lits([Token::LeftBrace]) {
+        } else if self.match_next_lits([TokenType::LeftBrace]) {
             Ok(Stmt::Block(self.block()?))
         }
         else {
@@ -342,22 +360,22 @@ impl<'a> Parser<'a> {
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseErr> {
         let mut res = vec![];
-        while self.has_next() && !self.check(&Token::RightBrace) {
+        while self.has_next() && !self.check(&TokenType::RightBrace) {
             res.push(self.declaration()?.clone());
         }
-        self.consume(&Token::RightBrace)?;
+        self.consume(&TokenType::RightBrace)?;
         Ok(res)
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ParseErr> {
         let res = self.expression();
-        self.consume(&Token::Semicolon)?;
+        self.consume(&TokenType::Semicolon)?;
         Ok(Stmt::Print(res?))
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, ParseErr> {
         let res = self.expression();
-        self.consume(&Token::Semicolon)?;
+        self.consume(&TokenType::Semicolon)?;
         Ok(Stmt::Expr(res?))
     }
 
@@ -367,11 +385,11 @@ impl<'a> Parser<'a> {
 
     fn assignment(&mut self) -> ExprResult {
         let expr = self.equality()?;
-        if self.match_next_lits([Token::Equal]) {
-            if let Token::Identifier(tok) = self.previous() {
+        if self.match_next_lits([TokenType::Equal]) {
+            if let TokenType::Identifier(tok) = self.previous().data {
                 Ok(Box::new(Expr::Assignment(tok.clone(), expr)))
             } else {
-                Err(ParseErr::NotLvalue)
+                Err(ParseErr::new(ParseErrType::NotLvalue, Some(self.previous().clone())))
             }
         } else {
             Ok(expr)
@@ -381,9 +399,9 @@ impl<'a> Parser<'a> {
     fn equality(&mut self) -> ExprResult {
         let mut expr = self.comparison();
 
-        while self.match_next_lits([Token::BangEqual, Token::EqualEqual]) {
+        while self.match_next_lits([TokenType::BangEqual, TokenType::EqualEqual]) {
             // TODO: op.clone clones the string literal. Maybe refcount these.
-            let op = self.previous().clone();
+            let op = self.previous().clone().data;
             let right = self.comparison();
             expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
@@ -393,8 +411,8 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> ExprResult {
         let mut expr = self.term();
-        while self.match_next_lits([Token::Greater, Token::GreaterEqual, Token::Less, Token::LessEqual]) {
-            let op = self.previous().clone();
+        while self.match_next_lits([TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual]) {
+            let op = self.previous().clone().data;
             let right = self.term();
             expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
@@ -405,8 +423,8 @@ impl<'a> Parser<'a> {
     fn term(&mut self) -> ExprResult {
         let mut expr = self.factor();
 
-        while self.match_next_lits([Token::Plus, Token::Minus]) {
-            let op = self.previous().clone();
+        while self.match_next_lits([TokenType::Plus, TokenType::Minus]) {
+            let op = self.previous().clone().data;
             let right = self.factor();
             expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
@@ -418,8 +436,8 @@ impl<'a> Parser<'a> {
     fn factor(&mut self) -> ExprResult {
         let mut expr = self.unary();
 
-        while self.match_next_lits([Token::Slash, Token::Star]) {
-            let op = self.previous().clone();
+        while self.match_next_lits([TokenType::Slash, TokenType::Star]) {
+            let op = self.previous().clone().data;
             let right = self.unary();
             expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
@@ -428,36 +446,50 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> Result<ExprRef,ParseErr> {
-        if self.match_next_lits([Token::Bang, Token::Minus]) {
-            Ok(Box::new(Expr::Unary(self.previous().clone(), self.primary()?)))
+        if self.match_next_lits([TokenType::Bang, TokenType::Minus]) {
+            Ok(Box::new(Expr::Unary(self.previous().data, self.primary()?)))
         } else {
             self.primary()
         }
     }
 
     fn primary(&mut self) -> Result<ExprRef, ParseErr> {
-        let res = match self.advance().ok_or(ParseErr::UnexpectedToken)? {
-            Token::True => Expr::Literal(Val::Bool(true)),
-            Token::False => Expr::Literal(Val::Bool(false)),
-            Token::Nil => Expr::Literal(Val::Nil),
-            Token::Number(x) => Expr::Literal(Val::Num(*x)),
-            Token::String(x) => Expr::Literal(Val::String(x.clone())),
-            Token::LeftParen => {
+        let res = match self.advance().ok_or(ParseErr::new(ParseErrType::UnexpectedToken, None))?.data {
+            TokenType::True => Expr::Literal(Val::Bool(true)),
+            TokenType::False => Expr::Literal(Val::Bool(false)),
+            TokenType::Nil => Expr::Literal(Val::Nil),
+            TokenType::Number(x) => Expr::Literal(Val::Num(x)),
+            TokenType::String(x) => Expr::Literal(Val::String(x.clone())),
+            TokenType::LeftParen => {
                 let expr = *self.expression()?;
-                self.consume(&Token::RightParen)?;
+                self.consume(&TokenType::RightParen)?;
                 expr
             }
-            Token::Identifier(x) => Expr::Variable(x.clone()),
+            TokenType::Identifier(x) => Expr::Variable(x.clone()),
             // TODO: Error reporting, synchronize()
-            _ => return Err(ParseErr::UnexpectedToken)
+            _ => return Err(ParseErr::new(ParseErrType::UnexpectedToken, None))
         };
 
         Ok(Box::new(res))
     }
 }
 
+#[derive(Clone)]
+struct Token {
+    data: TokenType,
+    line: usize,
+}
+impl Token {
+    fn new(data: TokenType, line: usize) -> Self {
+        Token {
+            data,
+            line
+        }
+
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
-enum Token {
+enum TokenType {
     LeftParen,
     RightParen,
     LeftBrace,
@@ -515,7 +547,7 @@ fn run_file(path: &Path) {
     run(content.as_str(), &mut interpreter);
 }
 
-fn report_error(line: u64, err: &str) {
+fn report_error(line: usize, err: &str) {
     println!("[{line}] {err}");
 }
 
@@ -551,32 +583,32 @@ fn scan(code: &str) -> (Vec<Token>, bool) {
     let chars = code.chars().collect::<Vec<_>>();
     let mut scanner = Scanner::new(&chars);
     let mut result = vec![];
-    let mut line = 1;
+    let mut line: usize = 1;
     let mut error = false;
 
     loop {
         if let Some(c) = scanner.advance() {
             let tok = match c {
-                '(' => Token::LeftParen,
-                ')' => Token::RightParen,
-                '{' => Token::LeftBrace,
-                '}' => Token::RightBrace,
-                ',' => Token::Comma,
-                '.' => Token::Dot,
-                '+' => Token::Plus,
-                '-' => Token::Minus,
-                '*' => Token::Star,
-                ';' => Token::Semicolon,
+                '(' => TokenType::LeftParen,
+                ')' => TokenType::RightParen,
+                '{' => TokenType::LeftBrace,
+                '}' => TokenType::RightBrace,
+                ',' => TokenType::Comma,
+                '.' => TokenType::Dot,
+                '+' => TokenType::Plus,
+                '-' => TokenType::Minus,
+                '*' => TokenType::Star,
+                ';' => TokenType::Semicolon,
                 '/' => if scanner.match_next('/') {
                     while !matches!(scanner.peek(), Some('\n') | None) {
                         scanner.advance();
                     };
                     continue;
-                } else { Token::Slash },
-                '>' => if scanner.match_next('=') { Token::GreaterEqual } else { Token::Greater },
-                '=' => if scanner.match_next('=') { Token::EqualEqual } else { Token::Equal },
-                '<' => if scanner.match_next('=') { Token::LessEqual } else { Token::Less },
-                '!' => if scanner.match_next('=') { Token::BangEqual } else { Token::Bang },
+                } else { TokenType::Slash },
+                '>' => if scanner.match_next('=') { TokenType::GreaterEqual } else { TokenType::Greater },
+                '=' => if scanner.match_next('=') { TokenType::EqualEqual } else { TokenType::Equal },
+                '<' => if scanner.match_next('=') { TokenType::LessEqual } else { TokenType::Less },
+                '!' => if scanner.match_next('=') { TokenType::BangEqual } else { TokenType::Bang },
                 '\n' => { line += 1; continue; }
                 '\r' | '\t' | ' ' => continue,
                 '"' => {
@@ -595,7 +627,7 @@ fn scan(code: &str) -> (Vec<Token>, bool) {
                     // Consume closing " after getting index
                     scanner.advance();
                     let string = range.iter().collect::<String>();
-                    Token::String(string.into())
+                    TokenType::String(string.into())
                 }
                 '0'..='9' => {
                     let start = scanner.index();
@@ -605,7 +637,7 @@ fn scan(code: &str) -> (Vec<Token>, bool) {
 
                     let range = &chars[start - 1..scanner.index()];
                     match range.iter().collect::<String>().parse() {
-                        Ok(num) => Token::Number(num),
+                        Ok(num) => TokenType::Number(num),
                         Err(e) => {
                             report_error(line, e.to_string().as_str());
                             error = true;
@@ -623,25 +655,24 @@ fn scan(code: &str) -> (Vec<Token>, bool) {
                     let range = &chars[start - 1..scanner.index()];
                     let string = range.iter().collect::<String>();
                     match string.as_str() {
-                        "and" => Token::And,
-                        "class" => Token::Class,
-                        "else" => Token::Else,
-                        "false" => Token::False,
-                        "for" => Token::For,
-                        "fun" => Token::Fun,
-                        "if" => Token::If,
-                        "nil" => Token::Nil,
-                        "or" => Token::Or,
-                        "print" => Token::Print,
-                        "return" => Token::Return,
-                        "super" => Token::Super,
-                        "this" => Token::This,
-                        "true" => Token::True,
-                        "var" => Token::Var,
-                        "while" => Token::While,
-                        _ => Token::Identifier(string.into()),
+                        "and" => TokenType::And,
+                        "class" => TokenType::Class,
+                        "else" => TokenType::Else,
+                        "false" => TokenType::False,
+                        "for" => TokenType::For,
+                        "fun" => TokenType::Fun,
+                        "if" => TokenType::If,
+                        "nil" => TokenType::Nil,
+                        "or" => TokenType::Or,
+                        "print" => TokenType::Print,
+                        "return" => TokenType::Return,
+                        "super" => TokenType::Super,
+                        "this" => TokenType::This,
+                        "true" => TokenType::True,
+                        "var" => TokenType::Var,
+                        "while" => TokenType::While,
+                        _ => TokenType::Identifier(string.into()),
                     }
-
                 }
                 c => {
                     report_error(line, format!("Unexpected character '{}'", c).as_str());
@@ -649,9 +680,9 @@ fn scan(code: &str) -> (Vec<Token>, bool) {
                 }
             };
 
-            result.push(tok);
+            result.push(Token::new(tok, line));
         } else {
-            return (result, error)
+            return (result, error);
         }
     }
 }
