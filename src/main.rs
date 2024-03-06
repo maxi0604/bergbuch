@@ -149,7 +149,7 @@ impl Display for EvalError {
 
 impl Display for ParseErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(src) = self.source {
+        if let Some(src) = &self.source {
             write!(f, "[line {}] ", src.line);
         }
         match self.data {
@@ -292,13 +292,13 @@ impl<'a> Parser<'a> {
     }
 
     fn check(&mut self, tok: &TokenType) -> bool {
-        self.tokens.get(self.index).map(|x| x.data) == Some(tok.clone())
+        self.tokens.get(self.index).map(|x| &x.data) == Some(tok)
     }
 
     fn consume(&mut self, tok: &TokenType) -> Result<(), ParseErr> {
 
-        let data = self.tokens.get(self.index).map(|x| x.data);
-        if data != Some(tok.clone()) {
+        let data = self.tokens.get(self.index).map(|x| &x.data);
+        if data != Some(tok) {
             return Err(ParseErr::new(ParseErrType::UnmatchedPair, self.peek().cloned()))
         }
         self.index += 1;
@@ -328,7 +328,7 @@ impl<'a> Parser<'a> {
 
     fn declaration(&mut self) -> Result<Stmt, ParseErr> {
         if self.match_next_lits([TokenType::Var]) {
-            if let Some(TokenType::Identifier(id)) = self.advance().map(|x| x.data) {
+            if let Some(TokenType::Identifier(id)) = self.advance().map(|x| &x.data) {
                 let id = id.clone();
                 if self.match_next_lits([TokenType::Equal]) {
                     let value = self.equality()?;
@@ -386,7 +386,7 @@ impl<'a> Parser<'a> {
     fn assignment(&mut self) -> ExprResult {
         let expr = self.equality()?;
         if self.match_next_lits([TokenType::Equal]) {
-            if let TokenType::Identifier(tok) = self.previous().data {
+            if let TokenType::Identifier(tok) = &self.previous().data {
                 Ok(Box::new(Expr::Assignment(tok.clone(), expr)))
             } else {
                 Err(ParseErr::new(ParseErrType::NotLvalue, Some(self.previous().clone())))
@@ -445,20 +445,20 @@ impl<'a> Parser<'a> {
         expr
     }
 
-    fn unary(&mut self) -> Result<ExprRef,ParseErr> {
+    fn unary(&mut self) -> Result<ExprRef, ParseErr> {
         if self.match_next_lits([TokenType::Bang, TokenType::Minus]) {
-            Ok(Box::new(Expr::Unary(self.previous().data, self.primary()?)))
+            Ok(Box::new(Expr::Unary(self.previous().data.clone(), self.primary()?)))
         } else {
             self.primary()
         }
     }
 
     fn primary(&mut self) -> Result<ExprRef, ParseErr> {
-        let res = match self.advance().ok_or(ParseErr::new(ParseErrType::UnexpectedToken, None))?.data {
+        let res = match &self.advance().ok_or(ParseErr::new(ParseErrType::UnexpectedToken, None))?.data {
             TokenType::True => Expr::Literal(Val::Bool(true)),
             TokenType::False => Expr::Literal(Val::Bool(false)),
             TokenType::Nil => Expr::Literal(Val::Nil),
-            TokenType::Number(x) => Expr::Literal(Val::Num(x)),
+            TokenType::Number(x) => Expr::Literal(Val::Num(*x)),
             TokenType::String(x) => Expr::Literal(Val::String(x.clone())),
             TokenType::LeftParen => {
                 let expr = *self.expression()?;
