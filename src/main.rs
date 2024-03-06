@@ -80,7 +80,7 @@ impl<'a> Interpreter<'a> {
 }
 
 impl Stmt {
-    fn exec<'a>(&self, scope: &mut Scope<'a>) -> Result<(), EvalError> {
+    fn exec(&self, scope: &mut Scope) -> Result<(), EvalError> {
         match self {
             Self::Print(expr) => println!("{}", expr.eval(scope)?),
             Self::Expr(expr) => { expr.eval(scope)?; },
@@ -551,7 +551,7 @@ fn run_prompt() {
 }
 
 fn run(code: &str, interpreter: &mut Interpreter) {
-    let (scanned, err) = scan(code);
+    let (scanned, _err) = scan(code);
     let mut parser = Parser::new(&scanned);
     let parsed = parser.program();
     if let Ok(parsed) = parsed {
