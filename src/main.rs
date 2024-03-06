@@ -4,6 +4,7 @@ use std::{
 };
 
 type ExprRef = Box<Expr>;
+type ParseResult = Result<ExprRef, ParseErr>;
 
 #[derive(Debug, PartialEq, Clone)]
 enum Val {
@@ -36,10 +37,12 @@ enum Expr {
 #[derive(Debug)]
 enum EvalError {
     TypeError,
+    ParseError(ParseErr)
 }
 
 #[derive(Debug)]
 enum ParseErr {
+    UnexpectedToken,
     UnmatchedPair,
 }
 
@@ -52,7 +55,10 @@ impl Display for EvalError {
 
 impl Display for ParseErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Unmatched pair.")
+        match self {
+            Self::UnexpectedToken => write!(f, "Unexpected token."),
+            Self::UnmatchedPair => write!(f, "Unmatched pair.")
+        }
     }
 }
 
@@ -174,9 +180,9 @@ impl<'a> Parser<'a> {
         res
     }
 
-    fn advance(&mut self) -> &Token {
+    fn advance(&mut self) -> Option<&Token> {
         self.index += 1;
-        &self.tokens[self.index - 1]
+        self.tokens.get(self.index - 1)
     }
 
     fn consume(&mut self, tok: &Token) -> Result<(), ParseErr> {
@@ -200,84 +206,88 @@ impl<'a> Parser<'a> {
     }
 
     // Parsing the actual grammar.
-    fn expression(&mut self) -> ExprRef {
+    fn program(&mut self) -> ParseResult {
+        self.equality()
+    }
+    // Parsing the actual grammar.
+    fn expression(&mut self) -> ParseResult {
         self.equality()
     }
 
-    fn equality(&mut self) -> ExprRef {
+    fn equality(&mut self) -> ParseResult {
         let mut expr = self.comparison();
 
         while self.match_next_lits([Token::BangEqual, Token::EqualEqual]) {
             // TODO: op.clone clones the string literal. Maybe refcount these.
             let op = self.previous().clone();
             let right = self.comparison();
-            expr = Box::new(Expr::Binary(op, expr, right));
+            expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
 
         expr
     }
 
-    fn comparison(&mut self) -> ExprRef {
+    fn comparison(&mut self) -> ParseResult {
         let mut expr = self.term();
         while self.match_next_lits([Token::Greater, Token::GreaterEqual, Token::Less, Token::LessEqual]) {
             let op = self.previous().clone();
             let right = self.term();
-            expr = Box::new(Expr::Binary(op, expr, right));
+            expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
 
         expr
     }
 
-    fn term(&mut self) -> ExprRef {
+    fn term(&mut self) -> ParseResult {
         let mut expr = self.factor();
 
         while self.match_next_lits([Token::Plus, Token::Minus]) {
             let op = self.previous().clone();
             let right = self.factor();
-            expr = Box::new(Expr::Binary(op, expr, right));
+            expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
 
 
         expr
     }
 
-    fn factor(&mut self) -> ExprRef {
+    fn factor(&mut self) -> ParseResult {
         let mut expr = self.unary();
 
         while self.match_next_lits([Token::Slash, Token::Star]) {
             let op = self.previous().clone();
             let right = self.unary();
-            expr = Box::new(Expr::Binary(op, expr, right));
+            expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
 
         expr
     }
 
-    fn unary(&mut self) -> ExprRef {
+    fn unary(&mut self) -> Result<ExprRef,ParseErr> {
         if self.match_next_lits([Token::Bang, Token::Minus]) {
-            Box::new(Expr::Unary(self.previous().clone(), self.primary()))
+            Ok(Box::new(Expr::Unary(self.previous().clone(), self.primary()?)))
         } else {
             self.primary()
         }
     }
 
-    fn primary(&mut self) -> ExprRef {
-        let res = match self.advance() {
+    fn primary(&mut self) -> Result<ExprRef, ParseErr> {
+        let res = match self.advance().ok_or(ParseErr::UnexpectedToken)? {
             Token::True => Expr::Literal(Val::Bool(true)),
             Token::False => Expr::Literal(Val::Bool(false)),
             Token::Nil => Expr::Literal(Val::Nil),
             Token::Number(x) => Expr::Literal(Val::Num(*x)),
             Token::String(x) => Expr::Literal(Val::String(x.to_string())),
             Token::LeftParen => {
-                let expr = *self.expression();
-                self.consume(&Token::RightParen);
+                let expr = *self.expression()?;
+                self.consume(&Token::RightParen)?;
                 expr
             }
             // TODO: Error reporting, synchronize()
             _ => Expr::Literal(Val::Nil)
         };
 
-        Box::new(res)
+        Ok(Box::new(res))
     }
 }
 
@@ -383,7 +393,9 @@ fn run(code: &str) {
     let mut parser = Parser::new(&scanned);
     let parsed = parser.expression();
     dbg!(&parsed);
-    dbg!(parsed.eval());
+    if let Ok(parsed) = parsed {
+        dbg!(parsed.eval());
+    }
 }
 
 
