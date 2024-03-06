@@ -163,15 +163,9 @@ impl Expr {
                         Ok(Val::String(c.into()))
                     },
 
-                    (Token::EqualEqual, Val::String(a), Val::String(b)) => Ok(Val::Bool(a == b)),
-                    (Token::EqualEqual, Val::Bool(a), Val::Bool(b)) => Ok(Val::Bool(a == b)),
-                    (Token::EqualEqual, Val::Nil, Val::Nil) => Ok(Val::Bool(true)),
-                    (Token::EqualEqual, _, _) => Ok(Val::Bool(false)),
+                    (Token::EqualEqual, x, y) => Ok(Val::Bool(x == y)),
+                    (Token::BangEqual, x, y) => Ok(Val::Bool(x != y)),
 
-                    (Token::BangEqual, Val::String(a), Val::String(b)) => Ok(Val::Bool(a != b)),
-                    (Token::BangEqual, Val::Bool(a), Val::Bool(b)) => Ok(Val::Bool(a != b)),
-                    (Token::BangEqual, Val::Nil, Val::Nil) => Ok(Val::Bool(false)),
-                    (Token::BangEqual, _, _) => Ok(Val::Bool(true)),
                     _ => Err(EvalError::TypeError)
                 }
             }
