@@ -97,7 +97,8 @@ fn main() {
 }
 
 fn run_file(path: &Path) {
-    let content = fs::read_to_string(path);
+    let content = fs::read_to_string(path).expect("Error reading file.");
+    run(content.as_str());
 }
 
 fn report_error(line: u64, err: &str) {
@@ -105,12 +106,17 @@ fn report_error(line: u64, err: &str) {
 }
 
 fn run_prompt() {
-    print!("> ");
-    stdout().flush().unwrap();
-    for line in stdin().lines() {
-        run(&line.expect("Error reading stdin"));
+    if stdin().is_terminal() {
         print!("> ");
         stdout().flush().unwrap();
+    }
+
+    for line in stdin().lines() {
+        run(&line.expect("Error reading stdin"));
+        if stdin().is_terminal() {
+            print!("> ");
+            stdout().flush().unwrap();
+        }
     }
 }
 
