@@ -126,7 +126,7 @@ struct ParseErr {
 #[derive(Debug, Clone)]
 enum ParseErrType {
     UnexpectedToken,
-    UnmatchedPair,
+    ExpectedToken(TokenType, Option<Token>),
     NotLvalue,
 }
 
@@ -151,12 +151,21 @@ impl Display for EvalError {
 impl Display for ParseErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(src) = &self.source {
-            write!(f, "[line {}] ", src.line);
+            write!(f, "[line {}] ", src.line)?;
         }
-        match self.data {
-            ParseErrType::UnexpectedToken => write!(f, "Unexpected token."),
-            ParseErrType::UnmatchedPair => write!(f, "Unmatched pair."),
-            ParseErrType::NotLvalue => write!(f, "Left side is not assignable."),
+        match (&self.data, &self.source) {
+            (ParseErrType::UnexpectedToken, Some(src)) => write!(f, "Unexpected token '{:?}'.", src.data),
+            (ParseErrType::UnexpectedToken, None) => write!(f, "Unexpected token."),
+            (ParseErrType::ExpectedToken(t, Some(act)), Some(src)) => write!(f,
+                "Expected token '{:?}' to close {:?} [line {}] but got {:?}",
+                t, src.data, src.line, act.data),
+            (ParseErrType::ExpectedToken(t, None), Some(src)) => write!(f,
+                "Expected token '{:?}' to close {:?} [line {}] but got no more token",
+                t, src.data, src.line),
+            (ParseErrType::ExpectedToken(t, None), None) => write!(f, "Expected token '{:?}', got EOF", t),
+            (ParseErrType::ExpectedToken(t, Some(act)), None) => write!(f, "[line {}] Expected token '{:?}' but got {:?}", act.line, t, act.data),
+            (ParseErrType::NotLvalue, Some(src)) => write!(f, "Left side ('{:?}') is not assignable.", src),
+            (ParseErrType::NotLvalue, None) => write!(f, "Left side is not assignable."),
         }
     }
 }
@@ -298,9 +307,20 @@ impl<'a> Parser<'a> {
 
     fn consume(&mut self, tok: &TokenType) -> Result<(), ParseErr> {
 
-        let data = self.tokens.get(self.index).map(|x| &x.data);
-        if data != Some(tok) {
-            return Err(ParseErr::new(ParseErrType::UnmatchedPair, self.peek().cloned()))
+        let data = self.peek();
+        if data.map(|x| &x.data) != Some(tok) {
+            return Err(ParseErr::new(ParseErrType::ExpectedToken(tok.clone(), data.cloned()), None))
+        }
+        self.index += 1;
+
+        Ok(())
+    }
+
+    fn consume_pair(&mut self, tok: &TokenType, other: &Token) -> Result<(), ParseErr> {
+
+        let data = self.peek();
+        if data.map(|x| &x.data) != Some(tok) {
+            return Err(ParseErr::new(ParseErrType::ExpectedToken(tok.clone(), data.cloned()), Some(other.clone())))
         }
         self.index += 1;
 
@@ -360,11 +380,12 @@ impl<'a> Parser<'a> {
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseErr> {
+        let left_brace = self.previous().clone();
         let mut res = vec![];
         while self.has_next() && !self.check(&TokenType::RightBrace) {
             res.push(self.declaration()?.clone());
         }
-        self.consume(&TokenType::RightBrace)?;
+        self.consume_pair(&TokenType::RightBrace, &left_brace)?;
         Ok(res)
     }
 
@@ -457,15 +478,17 @@ impl<'a> Parser<'a> {
     }
 
     fn primary(&mut self) -> Result<ExprRef, ParseErr> {
-        let res = match &self.advance().ok_or(ParseErr::new(ParseErrType::UnexpectedToken, None))?.data {
+        let tok = self.advance().ok_or(ParseErr::new(ParseErrType::UnexpectedToken, None))?;
+        let res = match &tok.data.clone() {
             TokenType::True => Expr::Literal(Val::Bool(true)),
             TokenType::False => Expr::Literal(Val::Bool(false)),
             TokenType::Nil => Expr::Literal(Val::Nil),
             TokenType::Number(x) => Expr::Literal(Val::Num(*x)),
             TokenType::String(x) => Expr::Literal(Val::String(x.clone())),
             TokenType::LeftParen => {
+                let clone = tok.clone();
                 let expr = *self.expression()?;
-                self.consume(&TokenType::RightParen)?;
+                self.consume_pair(&TokenType::RightParen, &clone)?;
                 expr
             }
             TokenType::Identifier(x) => Expr::Variable(x.clone()),
