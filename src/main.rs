@@ -117,6 +117,7 @@ enum EvalError {
     UndefinedVariable
 }
 
+#[derive(Debug)]
 struct ParseErr {
     data: ParseErrType,
     source: Option<Token>,
@@ -384,15 +385,17 @@ impl<'a> Parser<'a> {
     }
 
     fn assignment(&mut self) -> ExprResult {
-        let expr = self.equality()?;
+        let expr = self.equality();
         if self.match_next_lits([TokenType::Equal]) {
-            if let TokenType::Identifier(tok) = &self.previous().data {
-                Ok(Box::new(Expr::Assignment(tok.clone(), expr)))
+            let eq = self.previous().clone();
+            let val = self.assignment();
+            if let Expr::Variable(tok) = *expr?.clone() {
+                Ok(Box::new(Expr::Assignment(tok.clone(), val?)))
             } else {
-                Err(ParseErr::new(ParseErrType::NotLvalue, Some(self.previous().clone())))
+                Err(ParseErr::new(ParseErrType::NotLvalue, Some(eq)))
             }
         } else {
-            Ok(expr)
+            expr
         }
     }
 
@@ -467,14 +470,14 @@ impl<'a> Parser<'a> {
             }
             TokenType::Identifier(x) => Expr::Variable(x.clone()),
             // TODO: Error reporting, synchronize()
-            _ => return Err(ParseErr::new(ParseErrType::UnexpectedToken, None))
+            _ => return Err(ParseErr::new(ParseErrType::UnexpectedToken, Some(self.previous().clone())))
         };
 
         Ok(Box::new(res))
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Token {
     data: TokenType,
     line: usize,
@@ -571,8 +574,13 @@ fn run(code: &str, interpreter: &mut Interpreter) {
     let (scanned, _err) = scan(code);
     let mut parser = Parser::new(&scanned);
     let parsed = parser.program();
-    if let Ok(parsed) = parsed {
-        if let Err(err) = interpreter.interpret(parsed) {
+    match parsed {
+        Ok(parsed) => {
+            if let Err(err) = interpreter.interpret(parsed) {
+                println!("{}", err);
+            }
+        }
+        Err(err) => {
             println!("{}", err);
         }
     }
