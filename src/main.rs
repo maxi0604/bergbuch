@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{
-    borrow::{Borrow, BorrowMut}, cell::{Ref, RefCell}, collections::HashMap, env::args_os, fmt::Display, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
+    borrow::{Borrow, BorrowMut}, cell::{RefCell}, collections::HashMap, env::args_os, fmt::Display, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
 };
 
 type ExprRef = Box<Expr>;
@@ -210,7 +210,7 @@ impl Display for ParseErr {
 }
 
 impl Expr {
-    fn eval(&self, mut scope: ScopeLink) -> Result<Val, EvalError> {
+    fn eval(&self, scope: ScopeLink) -> Result<Val, EvalError> {
         match self {
             Self::Literal(v) => Ok(v.clone()),
             Self::Binary(op, x, y) => {
