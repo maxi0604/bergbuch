@@ -98,7 +98,7 @@ impl Expr {
                 .ok_or(EvalError::UndefinedVariable),
             Self::Assignment(id, val) => {
                 let r = val.eval(scope.clone())?;
-                (*scope).borrow_mut().define(id.clone(), r.clone());
+                (*scope).borrow_mut().set(id.clone(), r.clone())?;
                 Ok(r)
             } // Self::Grouping(exp) => exp.eval(),
               // _ => Err(EvalError::TypeError)

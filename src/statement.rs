@@ -22,9 +22,9 @@ impl Stmt {
             Self::Declare(id, val) => {
                 if let Some(val) = val {
                     let val = val.eval(scope.clone())?;
-                    (*scope).borrow_mut().define(id.clone(), val);
+                    (*scope).borrow_mut().declare(id.clone(), val);
                 } else {
-                    (*scope).borrow_mut().define(id.clone(), Val::Nil);
+                    (*scope).borrow_mut().declare(id.clone(), Val::Nil);
                 }
             }
             Self::Block(stmts) => {

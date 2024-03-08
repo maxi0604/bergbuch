@@ -1,4 +1,4 @@
-use crate::expr::Val;
+use crate::expr::{EvalError, Val};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub type ScopeLink = Rc<RefCell<Scope>>;
@@ -28,10 +28,10 @@ impl Scope {
     }
 
     #[allow(clippy::map_entry)]
-    pub fn define(&mut self, id: Rc<str>, val: Val) {
+    pub fn set(&mut self, id: Rc<str>, val: Val) -> Result<(), EvalError> {
         if self.stack.contains_key(&id) {
             self.stack.insert(id, val);
-            return;
+            return Ok(());
         }
 
         let mut cur = self.parent.clone();
@@ -43,12 +43,16 @@ impl Scope {
             let mut borrow = (*real).borrow_mut();
             if borrow.stack.contains_key(&id) {
                 borrow.stack.insert(id, val);
-                return;
+                return Ok(());
             }
 
             cur = borrow.parent.clone();
         }
 
+        Err(EvalError::UndefinedVariable)
+    }
+
+    pub fn declare(&mut self, id: Rc<str>, val: Val) {
         self.stack.insert(id, val);
     }
 
