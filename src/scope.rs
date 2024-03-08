@@ -10,7 +10,6 @@ pub struct Scope {
 
 impl Scope {
     pub fn get(&self, id: &str) -> Option<Val> {
-        dbg!(self);
         if let Some(val) = self.stack.get(id) {
             return Some(val.clone());
         }
