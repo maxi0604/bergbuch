@@ -1,30 +1,66 @@
 use core::fmt;
 use std::{
-    collections::HashMap, env::args_os, fmt::Display, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
+    borrow::{Borrow, BorrowMut}, cell::{Ref, RefCell}, collections::HashMap, env::args_os, fmt::Display, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
 };
 
 type ExprRef = Box<Expr>;
 type ExprResult = Result<ExprRef, ParseErr>;
 
+type ScopeLink = Rc<RefCell<Scope>>;
 #[derive(Debug, Default)]
-struct Scope<'a> {
+struct Scope {
     stack: HashMap<Rc<str>, Val>,
-    parent: Option<&'a Scope<'a>>
+    parent: Option<Rc<RefCell<Scope>>>,
 }
 
-impl<'a> Scope<'a> {
-    fn get(&self, id: &str) -> Option<&Val> {
-        self.stack.get(id).or_else(|| self.parent?.get(id))
+impl Scope {
+    fn get(&self, id: &str) -> Option<Val> {
+        dbg!(self);
+        if let Some(val) = self.stack.get(id) {
+            return Some(val.clone());
+        }
+
+        let mut cur = self.parent.clone()?;
+        loop {
+            let borrow = (*cur).borrow();
+            if let Some(val) = borrow.stack.get(id) {
+                return Some(val.clone());
+            }
+
+            let next = borrow.parent.clone()?;
+            drop(borrow);
+            cur = next;
+        }
     }
 
     fn define(&mut self, id: Rc<str>, val: Val) {
+        if self.stack.contains_key(&id) {
+            self.stack.insert(id, val);
+            return;
+        }
+
+        let mut cur = self.parent.clone();
+        loop {
+            let Some(real) = cur else {
+                break;
+            };
+
+            let mut borrow = (*real).borrow_mut();
+            if borrow.stack.contains_key(&id) {
+                borrow.stack.insert(id, val);
+                return;
+            }
+
+            cur = borrow.parent.clone();
+        }
+
         self.stack.insert(id, val);
     }
 
-    fn new_child(&self) -> Scope {
+    fn new_child(this: ScopeLink) -> Scope {
         Scope {
             stack: Default::default(),
-            parent: Some(self)
+            parent: Some(this)
         }
     }
 }
@@ -66,21 +102,23 @@ enum Stmt {
     Expr(ExprRef),
     Declare(Rc<str>, Option<ExprRef>),
     Block(Vec<Stmt>),
+    If(Box<Stmt>),
+    While(Box<Stmt>),
 }
 
-struct Interpreter<'a> {
-    global_scope: Scope<'a>
+struct Interpreter {
+    global_scope: Rc<RefCell<Scope>>
 }
 
-impl<'a> Interpreter<'a> {
+impl Interpreter {
     fn interpret(&mut self, program: impl IntoIterator<Item = Stmt>) -> Result<(), EvalError> {
         for stmt in program.into_iter() {
-            stmt.exec(&mut self.global_scope)?;
+            stmt.exec(self.global_scope.clone())?;
         }
         Ok(())
     }
 
-    fn new() -> Interpreter<'a> {
+    fn new() -> Interpreter {
         Interpreter {
             global_scope: Default::default()
         }
@@ -88,24 +126,25 @@ impl<'a> Interpreter<'a> {
 }
 
 impl Stmt {
-    fn exec(&self, scope: &mut Scope) -> Result<(), EvalError> {
+    fn exec(&self, scope: ScopeLink) -> Result<(), EvalError> {
         match self {
-            Self::Print(expr) => println!("{}", expr.eval(scope)?),
-            Self::Expr(expr) => { expr.eval(scope)?; },
+            Self::Print(expr) => println!("{}", expr.eval(scope.clone())?),
+            Self::Expr(expr) => { expr.eval(scope.clone())?; },
             Self::Declare(id, val) => {
                 if let Some(val) = val {
-                    let val = val.eval(scope)?;
-                    scope.define(id.clone(), val);
+                    let val = val.eval(scope.clone())?;
+                    (*scope).borrow_mut().define(id.clone(), val);
                 } else {
-                    scope.define(id.clone(), Val::Nil);
+                    (*scope).borrow_mut().define(id.clone(), Val::Nil);
                 }
             }
             Self::Block(stmts) => {
-                let mut child = scope.new_child();
+                let child = Rc::new(RefCell::new(Scope::new_child(scope)));
                 for stmt in stmts.iter() {
-                    stmt.exec(&mut child)?;
+                    stmt.exec(child.clone())?;
                 }
             }
+            _ => todo!("TODO")
         }
         Ok(())
     }
@@ -171,17 +210,17 @@ impl Display for ParseErr {
 }
 
 impl Expr {
-    fn eval(&self, scope: &mut Scope) -> Result<Val, EvalError> {
+    fn eval(&self, mut scope: ScopeLink) -> Result<Val, EvalError> {
         match self {
             Self::Literal(v) => Ok(v.clone()),
             Self::Binary(op, x, y) => {
-                let l = x.eval(scope)?;
+                let l = x.eval(scope.clone())?;
 
                 if *op == TokenType::Or && l == Val::Bool(true) || *op == TokenType::And && l == Val::Bool(false) {
                     return Ok(l);
                 }
 
-                let r = y.eval(scope)?;
+                let r = y.eval(scope.clone())?;
                 match (op, l, r) {
                     (TokenType::Plus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a + b)),
                     (TokenType::Minus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a - b)),
@@ -218,11 +257,11 @@ impl Expr {
                 }
             }
             Self::Variable(id) => {
-                scope.get(id).ok_or(EvalError::UndefinedVariable).cloned()
+                (*scope).borrow().get(id).ok_or(EvalError::UndefinedVariable)
             },
             Self::Assignment(id, val) => {
-                let r = val.eval(scope)?;
-                scope.define(id.clone(), r.clone());
+                let r = val.eval(scope.clone())?;
+                (*scope).borrow_mut().define(id.clone(), r.clone());
                 Ok(r)
             }
             // Self::Grouping(exp) => exp.eval(),
