@@ -219,10 +219,10 @@ impl<'a> Parser<'a> {
     }
 
     fn assignment(&mut self) -> ExprResult {
-        let expr = self.equality();
+        let expr = self.logic_or();
         if self.match_next_lits([TokenType::Equal]) {
             let eq = self.previous().clone();
-            let val = self.assignment();
+            let val = self.logic_or();
             if let Expr::Variable(tok) = *expr?.clone() {
                 Ok(Box::new(Expr::Assignment(tok.clone(), val?)))
             } else {
@@ -231,6 +231,33 @@ impl<'a> Parser<'a> {
         } else {
             expr
         }
+    }
+
+    fn logic_or(&mut self) -> ExprResult {
+        let mut expr = self.logic_and();
+
+        while self.match_next_lits([TokenType::Or]) {
+            // TODO: op.clone clones the string literal. Maybe refcount these.
+            let op = self.previous().clone().data;
+            let right = self.logic_and();
+            expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
+        }
+
+        expr
+    }
+
+    fn logic_and(&mut self) -> ExprResult {
+        let mut expr = self.equality();
+
+        while self.match_next_lits([TokenType::Or, TokenType::EqualEqual]) {
+            // TODO: op.clone clones the string literal. Maybe refcount these.
+            let op = self.previous().clone().data;
+            let right = self.equality();
+            expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
+        }
+
+        expr
+
     }
 
     fn equality(&mut self) -> ExprResult {
