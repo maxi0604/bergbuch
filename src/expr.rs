@@ -29,8 +29,7 @@ pub enum Expr {
     Unary(TokenType, ExprRef),
     Literal(Val),
     Variable(Rc<str>),
-    Assignment(Rc<str>, ExprRef), // This seems unnecessary so far.
-                                  // Grouping(ExprRef)
+    Assignment(Rc<str>, ExprRef),
 }
 
 impl Expr {
