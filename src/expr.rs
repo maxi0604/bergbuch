@@ -1,5 +1,5 @@
 use std::{
-    borrow::BorrowMut, fmt::{self, Display, Write}, rc::Rc, cell::RefCell, time::{self, Duration}, usize
+    fmt::{self, Display, Write}, rc::Rc, cell::RefCell, time::{self, Duration},
 };
 
 use crate::{scope::{ScopeLink, Scope}, statement::{ExecInterruption, Stmt}};

@@ -1,6 +1,5 @@
 use crate::expr::{EvalError, ExprRef, Val};
 use crate::scope::{Scope, ScopeLink};
-use std::borrow::BorrowMut;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, PartialEq, Clone)]
