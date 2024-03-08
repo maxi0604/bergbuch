@@ -290,7 +290,7 @@ impl<'a> Parser<'a> {
         if self.match_next_lits([TokenType::Bang, TokenType::Minus]) {
             Ok(Box::new(Expr::Unary(
                 self.previous().data.clone(),
-                self.primary()?,
+                self.unary()?,
             )))
         } else {
             self.primary()
