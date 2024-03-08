@@ -67,6 +67,22 @@ if (true and false) {
     assert_eq!(interp.get_global("result"), Some(Val::String("bar".into())));
 }
 
+#[test]
+fn if_elseif_else() {
+    let mut interp = Interpreter::new();
+    interp.run("
+var result;
+if (true and false) {
+    result = \"foo\";
+} else if (false or true) {
+    result = \"far\";
+} else {
+    result = \"bar\";
+}
+");
+
+    assert_eq!(interp.get_global("result"), Some(Val::String("far".into())));
+}
 
 #[test]
 fn comment() {
