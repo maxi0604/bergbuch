@@ -277,12 +277,11 @@ impl<'a> Parser<'a> {
     fn assignment(&mut self) -> ExprResult {
         let expr = self.logic_or();
         if self.match_next_lits([TokenType::Equal]) {
-            let eq = self.previous().clone();
             let val = self.logic_or();
             if let Expr::Variable(tok) = *expr?.clone() {
                 Ok(Box::new(Expr::Assignment(tok.clone(), val?)))
             } else {
-                Err(ParseErr::new(ParseErrType::NotLvalue, Some(eq)))
+                Err(ParseErr::new(ParseErrType::NotLvalue, None))
             }
         } else {
             expr
