@@ -116,6 +116,18 @@ var result = foo(1);
 
 
 #[test]
+fn simple_while() {
+    let mut interp = Interpreter::new();
+    interp.run("
+var a = 0;
+while (a < 10) {
+a = a + 1;
+}
+");
+
+    assert_eq!(interp.get_global("a"), Some(Val::Num(10.0)));
+}
+#[test]
 fn return_local_function() {
     let mut interp = Interpreter::new();
     interp.run("
