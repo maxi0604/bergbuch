@@ -141,10 +141,10 @@ impl<'a> Parser<'a> {
                 if self.match_next_lits([TokenType::Equal]) {
                     let value = self.equality()?;
                     self.consume(&TokenType::Semicolon)?;
-                    Ok(Stmt::Declare(id.into(), Some(value)))
+                    Ok(Stmt::Declare(id, Some(value)))
                 } else {
                     self.consume(&TokenType::Semicolon)?;
-                    Ok(Stmt::Declare(id.into(), None))
+                    Ok(Stmt::Declare(id, None))
                 }
             } else {
                 Err(ParseErr::new(ParseErrType::NotLvalue, self.peek().cloned()))
@@ -156,8 +156,8 @@ impl<'a> Parser<'a> {
 
     fn statement(&mut self) -> Result<Stmt, ParseErr> {
         if self.match_next_lits([TokenType::Print]) {
-            let val = self.print_statement();
-            val
+            
+            self.print_statement()
         } else if self.match_next_lits([TokenType::LeftBrace]) {
             Ok(Stmt::Block(self.block()?))
         }
