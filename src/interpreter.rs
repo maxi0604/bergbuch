@@ -1,5 +1,5 @@
 use crate::scanner::scan;
-use crate::expr::{EvalError, Val};
+use crate::expr::{EvalError, NativeCall, Val};
 use crate::parser::Parser;
 use crate::scope::Scope;
 use crate::statement::Stmt;
@@ -39,8 +39,10 @@ impl Interpreter {
     }
 
     pub fn new() -> Interpreter {
+        let mut global_scope = Scope::default();
+        global_scope.declare("clock".into(), Val::NativeCall(NativeCall::Clock));
         Interpreter {
-            global_scope: Default::default(),
+            global_scope: Rc::new(RefCell::new(global_scope)),
         }
     }
 

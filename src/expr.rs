@@ -1,16 +1,43 @@
 use std::{
-    fmt,
-    fmt::{Display, Write},
-    rc::Rc,
+    fmt::{self, Display, Write}, rc::Rc, time::{self, Duration, SystemTime}, usize
 };
 
 use crate::scope::ScopeLink;
 use crate::token::TokenType;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum NativeCall {
+    Clock,
+}
+
+impl NativeCall {
+    pub fn arity(&self) -> usize {
+        match self {
+            Self::Clock => 0,
+        }
+    }
+
+    pub fn call(&self, vals: &[Val]) -> Result<Val, EvalError> {
+        if self.arity() == vals.len() {
+            match self {
+                Self::Clock => Ok(Self::clock())
+            }
+        } else {
+            Err(EvalError::WrongArgumentCount(self.arity(), vals.len()))
+        }
+    }
+
+    fn clock() -> Val {
+        Val::Num(time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or(Duration::ZERO).as_secs_f64())
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Val {
     String(Rc<str>),
     Num(f64),
     Bool(bool),
+    NativeCall(NativeCall),
     Nil,
 }
 
@@ -20,6 +47,7 @@ impl Val {
             Val::String(str) => str.len() > 0,
             Val::Num(x) => *x != 0.0 && !f64::is_nan(*x),
             Val::Bool(x) => *x,
+            Val::NativeCall(_) => true,
             Val::Nil => false,
         }
     }
@@ -31,6 +59,7 @@ impl fmt::Display for Val {
             Self::String(x) => write!(f, "{}", x),
             Self::Num(x) => write!(f, "{}", x),
             Self::Bool(x) => write!(f, "{}", x),
+            Self::NativeCall(_) => write!(f, "<native function>"),
             Self::Nil => write!(f, "nil"),
         }
     }
@@ -117,7 +146,14 @@ impl Expr {
                 (*scope).borrow_mut().set(id.clone(), r.clone())?;
                 Ok(r)
             } // Self::Grouping(exp) => exp.eval(),
-            Self::Call(fun, args) => todo!()
+            Self::Call(fun, args) => {
+                let fun = fun.eval(scope.clone())?;
+
+                match fun {
+                    Val::NativeCall(nc) => nc.call(&[]),
+                    _ => Err(EvalError::TypeError)
+                }
+            }
               // _ => Err(EvalError::TypeError)
         }
     }
@@ -127,6 +163,7 @@ impl Expr {
 pub enum EvalError {
     TypeError,
     UndefinedVariable,
+    WrongArgumentCount(usize, usize)
 }
 
 impl Display for EvalError {
@@ -134,6 +171,7 @@ impl Display for EvalError {
         match self {
             Self::TypeError => write!(f, "Type error."),
             Self::UndefinedVariable => write!(f, "Undefined variable."),
+            Self::WrongArgumentCount(exp, act) => write!(f, "Expected {exp} arguments, got {act}"),
         }
     }
 }
