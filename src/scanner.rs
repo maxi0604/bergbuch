@@ -66,9 +66,8 @@ pub fn scan(code: &str) -> (Vec<Token>, bool) {
                             scanner.advance();
                         }
                         continue;
-                    } else {
-                        TokenType::Slash
                     }
+                    TokenType::Slash
                 }
                 '>' => {
                     if scanner.match_next('=') {
