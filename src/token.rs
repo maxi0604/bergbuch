@@ -7,10 +7,7 @@ pub struct Token {
 
 impl Token {
     pub fn new(data: TokenType, line: usize) -> Self {
-        Token {
-            data,
-            line
-        }
+        Token { data, line }
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -55,5 +52,5 @@ pub enum TokenType {
     This,
     True,
     Var,
-    While
+    While,
 }

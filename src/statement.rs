@@ -1,8 +1,6 @@
-use std::{
-    rc::Rc, cell::RefCell
-};
 use crate::expr::{EvalError, ExprRef, Val};
-use crate::scope::{ScopeLink, Scope};
+use crate::scope::{Scope, ScopeLink};
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
@@ -18,7 +16,9 @@ impl Stmt {
     pub fn exec(&self, scope: ScopeLink) -> Result<(), EvalError> {
         match self {
             Self::Print(expr) => println!("{}", expr.eval(scope.clone())?),
-            Self::Expr(expr) => { expr.eval(scope.clone())?; },
+            Self::Expr(expr) => {
+                expr.eval(scope.clone())?;
+            }
             Self::Declare(id, val) => {
                 if let Some(val) = val {
                     let val = val.eval(scope.clone())?;
@@ -33,7 +33,7 @@ impl Stmt {
                     stmt.exec(child.clone())?;
                 }
             }
-            _ => todo!("TODO")
+            _ => todo!("TODO"),
         }
         Ok(())
     }

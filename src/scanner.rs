@@ -19,8 +19,11 @@ impl<'a> Scanner<'a> {
     // "match" is a keyword in the metalanguage already.
     fn match_next(&mut self, c: char) -> bool {
         match self.str.get(self.index) {
-            Some(match_c) if *match_c == c => { self.index += 1; true }
-            Some(_) | None => false
+            Some(match_c) if *match_c == c => {
+                self.index += 1;
+                true
+            }
+            Some(_) | None => false,
         }
     }
 
@@ -29,10 +32,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn new(str: &'a [char]) -> Self {
-        Self {
-            index: 0,
-            str
-        }
+        Self { index: 0, str }
     }
 
     fn index(&self) -> usize {
@@ -60,17 +60,48 @@ pub fn scan(code: &str) -> (Vec<Token>, bool) {
                 '-' => TokenType::Minus,
                 '*' => TokenType::Star,
                 ';' => TokenType::Semicolon,
-                '/' => if scanner.match_next('/') {
-                    while !matches!(scanner.peek(), Some('\n') | None) {
-                        scanner.advance();
-                    };
+                '/' => {
+                    if scanner.match_next('/') {
+                        while !matches!(scanner.peek(), Some('\n') | None) {
+                            scanner.advance();
+                        }
+                        continue;
+                    } else {
+                        TokenType::Slash
+                    }
+                }
+                '>' => {
+                    if scanner.match_next('=') {
+                        TokenType::GreaterEqual
+                    } else {
+                        TokenType::Greater
+                    }
+                }
+                '=' => {
+                    if scanner.match_next('=') {
+                        TokenType::EqualEqual
+                    } else {
+                        TokenType::Equal
+                    }
+                }
+                '<' => {
+                    if scanner.match_next('=') {
+                        TokenType::LessEqual
+                    } else {
+                        TokenType::Less
+                    }
+                }
+                '!' => {
+                    if scanner.match_next('=') {
+                        TokenType::BangEqual
+                    } else {
+                        TokenType::Bang
+                    }
+                }
+                '\n' => {
+                    line += 1;
                     continue;
-                } else { TokenType::Slash },
-                '>' => if scanner.match_next('=') { TokenType::GreaterEqual } else { TokenType::Greater },
-                '=' => if scanner.match_next('=') { TokenType::EqualEqual } else { TokenType::Equal },
-                '<' => if scanner.match_next('=') { TokenType::LessEqual } else { TokenType::Less },
-                '!' => if scanner.match_next('=') { TokenType::BangEqual } else { TokenType::Bang },
-                '\n' => { line += 1; continue; }
+                }
                 '\r' | '\t' | ' ' => continue,
                 '"' => {
                     let start = scanner.index();

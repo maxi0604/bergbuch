@@ -1,5 +1,5 @@
-use std::{rc::Rc, cell::RefCell, collections::HashMap};
 use crate::expr::Val;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub type ScopeLink = Rc<RefCell<Scope>>;
 #[derive(Debug, Default)]
@@ -55,7 +55,7 @@ impl Scope {
     pub fn new_child(this: ScopeLink) -> Scope {
         Scope {
             stack: Default::default(),
-            parent: Some(this)
+            parent: Some(this),
         }
     }
 }

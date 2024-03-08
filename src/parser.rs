@@ -1,11 +1,8 @@
-use crate::token::*;
 use crate::expr::*;
 use crate::statement::Stmt;
+use crate::token::*;
 
-use std::{
-    fmt,
-    fmt::Display
-};
+use std::{fmt, fmt::Display};
 
 type ExprResult = Result<ExprRef, ParseErr>;
 
@@ -22,13 +19,9 @@ pub struct ParseErr {
     source: Option<Token>,
 }
 
-
 impl ParseErr {
     fn new(data: ParseErrType, source: Option<Token>) -> Self {
-        ParseErr {
-            data,
-            source
-        }
+        ParseErr { data, source }
     }
 }
 
@@ -38,17 +31,31 @@ impl Display for ParseErr {
             write!(f, "[line {}] ", src.line)?;
         }
         match (&self.data, &self.source) {
-            (ParseErrType::UnexpectedToken, Some(src)) => write!(f, "Unexpected token '{:?}'.", src.data),
+            (ParseErrType::UnexpectedToken, Some(src)) => {
+                write!(f, "Unexpected token '{:?}'.", src.data)
+            }
             (ParseErrType::UnexpectedToken, None) => write!(f, "Unexpected token."),
-            (ParseErrType::ExpectedToken(t, Some(act)), Some(src)) => write!(f,
+            (ParseErrType::ExpectedToken(t, Some(act)), Some(src)) => write!(
+                f,
                 "Expected token '{:?}' to close {:?} [line {}] but got {:?}",
-                t, src.data, src.line, act.data),
-            (ParseErrType::ExpectedToken(t, None), Some(src)) => write!(f,
+                t, src.data, src.line, act.data
+            ),
+            (ParseErrType::ExpectedToken(t, None), Some(src)) => write!(
+                f,
                 "Expected token '{:?}' to close {:?} [line {}] but got no more token",
-                t, src.data, src.line),
-            (ParseErrType::ExpectedToken(t, None), None) => write!(f, "Expected token '{:?}', got EOF", t),
-            (ParseErrType::ExpectedToken(t, Some(act)), None) => write!(f, "[line {}] Expected token '{:?}' but got {:?}", act.line, t, act.data),
-            (ParseErrType::NotLvalue, Some(src)) => write!(f, "Left side ('{:?}') is not assignable.", src),
+                t, src.data, src.line
+            ),
+            (ParseErrType::ExpectedToken(t, None), None) => {
+                write!(f, "Expected token '{:?}', got EOF", t)
+            }
+            (ParseErrType::ExpectedToken(t, Some(act)), None) => write!(
+                f,
+                "[line {}] Expected token '{:?}' but got {:?}",
+                act.line, t, act.data
+            ),
+            (ParseErrType::NotLvalue, Some(src)) => {
+                write!(f, "Left side ('{:?}') is not assignable.", src)
+            }
             (ParseErrType::NotLvalue, None) => write!(f, "Left side is not assignable."),
         }
     }
@@ -93,10 +100,12 @@ impl<'a> Parser<'a> {
     }
 
     fn consume(&mut self, tok: &TokenType) -> Result<(), ParseErr> {
-
         let data = self.peek();
         if data.map(|x| &x.data) != Some(tok) {
-            return Err(ParseErr::new(ParseErrType::ExpectedToken(tok.clone(), data.cloned()), None))
+            return Err(ParseErr::new(
+                ParseErrType::ExpectedToken(tok.clone(), data.cloned()),
+                None,
+            ));
         }
         self.index += 1;
 
@@ -104,10 +113,12 @@ impl<'a> Parser<'a> {
     }
 
     fn consume_pair(&mut self, tok: &TokenType, other: &Token) -> Result<(), ParseErr> {
-
         let data = self.peek();
         if data.map(|x| &x.data) != Some(tok) {
-            return Err(ParseErr::new(ParseErrType::ExpectedToken(tok.clone(), data.cloned()), Some(other.clone())))
+            return Err(ParseErr::new(
+                ParseErrType::ExpectedToken(tok.clone(), data.cloned()),
+                Some(other.clone()),
+            ));
         }
         self.index += 1;
 
@@ -119,10 +130,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn new(tokens: &[Token]) -> Parser {
-        Parser {
-            index: 0,
-            tokens
-        }
+        Parser { index: 0, tokens }
     }
 
     // Parsing the actual grammar.
@@ -156,12 +164,10 @@ impl<'a> Parser<'a> {
 
     fn statement(&mut self) -> Result<Stmt, ParseErr> {
         if self.match_next_lits([TokenType::Print]) {
-            
             self.print_statement()
         } else if self.match_next_lits([TokenType::LeftBrace]) {
             Ok(Stmt::Block(self.block()?))
-        }
-        else {
+        } else {
             self.expression_statement()
         }
     }
@@ -222,7 +228,12 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> ExprResult {
         let mut expr = self.term();
-        while self.match_next_lits([TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual]) {
+        while self.match_next_lits([
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
+        ]) {
             let op = self.previous().clone().data;
             let right = self.term();
             expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
@@ -239,7 +250,6 @@ impl<'a> Parser<'a> {
             let right = self.factor();
             expr = Ok(Box::new(Expr::Binary(op, expr?, right?)));
         }
-
 
         expr
     }
@@ -258,14 +268,19 @@ impl<'a> Parser<'a> {
 
     fn unary(&mut self) -> Result<ExprRef, ParseErr> {
         if self.match_next_lits([TokenType::Bang, TokenType::Minus]) {
-            Ok(Box::new(Expr::Unary(self.previous().data.clone(), self.primary()?)))
+            Ok(Box::new(Expr::Unary(
+                self.previous().data.clone(),
+                self.primary()?,
+            )))
         } else {
             self.primary()
         }
     }
 
     fn primary(&mut self) -> Result<ExprRef, ParseErr> {
-        let tok = self.advance().ok_or(ParseErr::new(ParseErrType::UnexpectedToken, None))?;
+        let tok = self
+            .advance()
+            .ok_or(ParseErr::new(ParseErrType::UnexpectedToken, None))?;
         let res = match &tok.data.clone() {
             TokenType::True => Expr::Literal(Val::Bool(true)),
             TokenType::False => Expr::Literal(Val::Bool(false)),
@@ -280,7 +295,12 @@ impl<'a> Parser<'a> {
             }
             TokenType::Identifier(x) => Expr::Variable(x.clone()),
             // TODO: Error reporting, synchronize()
-            _ => return Err(ParseErr::new(ParseErrType::UnexpectedToken, Some(self.previous().clone())))
+            _ => {
+                return Err(ParseErr::new(
+                    ParseErrType::UnexpectedToken,
+                    Some(self.previous().clone()),
+                ))
+            }
         };
 
         Ok(Box::new(res))

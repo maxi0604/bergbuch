@@ -1,15 +1,13 @@
-use std::{
-    fmt, fmt::Display, rc::Rc
-};
+use std::{fmt, fmt::Display, rc::Rc};
 
-use crate::token::TokenType;
 use crate::scope::ScopeLink;
+use crate::token::TokenType;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Val {
     String(Rc<str>),
     Num(f64),
     Bool(bool),
-    Nil
+    Nil,
 }
 
 impl fmt::Display for Val {
@@ -18,7 +16,7 @@ impl fmt::Display for Val {
             Self::String(x) => write!(f, "{}", x),
             Self::Num(x) => write!(f, "{}", x),
             Self::Bool(x) => write!(f, "{}", x),
-            Self::Nil => write!(f, "nil")
+            Self::Nil => write!(f, "nil"),
         }
     }
 }
@@ -31,9 +29,8 @@ pub enum Expr {
     Unary(TokenType, ExprRef),
     Literal(Val),
     Variable(Rc<str>),
-    Assignment(Rc<str>, ExprRef)
-    // This seems unnecessary so far.
-    // Grouping(ExprRef)
+    Assignment(Rc<str>, ExprRef), // This seems unnecessary so far.
+                                  // Grouping(ExprRef)
 }
 
 impl Expr {
@@ -43,7 +40,9 @@ impl Expr {
             Self::Binary(op, x, y) => {
                 let l = x.eval(scope.clone())?;
 
-                if *op == TokenType::Or && l == Val::Bool(true) || *op == TokenType::And && l == Val::Bool(false) {
+                if *op == TokenType::Or && l == Val::Bool(true)
+                    || *op == TokenType::And && l == Val::Bool(false)
+                {
                     return Ok(l);
                 }
 
@@ -67,12 +66,12 @@ impl Expr {
                         let mut c = a.to_string();
                         c.push_str(&b);
                         Ok(Val::String(c.into()))
-                    },
+                    }
 
                     (TokenType::EqualEqual, x, y) => Ok(Val::Bool(x == y)),
                     (TokenType::BangEqual, x, y) => Ok(Val::Bool(x != y)),
 
-                    _ => Err(EvalError::TypeError)
+                    _ => Err(EvalError::TypeError),
                 }
             }
             Self::Unary(op, x) => {
@@ -80,19 +79,19 @@ impl Expr {
                 match (op, l) {
                     (TokenType::Bang, Val::Bool(a)) => Ok(Val::Bool(!a)),
                     (TokenType::Minus, Val::Num(a)) => Ok(Val::Num(-a)),
-                    _ => Err(EvalError::TypeError)
+                    _ => Err(EvalError::TypeError),
                 }
             }
-            Self::Variable(id) => {
-                (*scope).borrow().get(id).ok_or(EvalError::UndefinedVariable)
-            },
+            Self::Variable(id) => (*scope)
+                .borrow()
+                .get(id)
+                .ok_or(EvalError::UndefinedVariable),
             Self::Assignment(id, val) => {
                 let r = val.eval(scope.clone())?;
                 (*scope).borrow_mut().define(id.clone(), r.clone());
                 Ok(r)
-            }
-            // Self::Grouping(exp) => exp.eval(),
-            // _ => Err(EvalError::TypeError)
+            } // Self::Grouping(exp) => exp.eval(),
+              // _ => Err(EvalError::TypeError)
         }
     }
 }
@@ -100,16 +99,14 @@ impl Expr {
 #[derive(Debug)]
 pub enum EvalError {
     TypeError,
-    UndefinedVariable
+    UndefinedVariable,
 }
-
 
 impl Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::TypeError => write!(f, "Type error."),
-            Self::UndefinedVariable => write!(f, "Undefined variable.")
+            Self::UndefinedVariable => write!(f, "Undefined variable."),
         }
     }
 }
-

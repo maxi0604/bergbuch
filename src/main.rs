@@ -1,15 +1,20 @@
 use std::{
-    cell::RefCell, env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
+    cell::RefCell,
+    env::args_os,
+    fs,
+    io::{stdin, stdout, IsTerminal, Write},
+    path::Path,
+    rc::Rc,
 };
 
-use bergbuch::scanner::scan;
+use bergbuch::expr::EvalError;
 use bergbuch::parser::Parser;
+use bergbuch::scanner::scan;
 use bergbuch::scope::Scope;
 use bergbuch::statement::Stmt;
-use bergbuch::expr::EvalError;
 
 struct Interpreter {
-    global_scope: Rc<RefCell<Scope>>
+    global_scope: Rc<RefCell<Scope>>,
 }
 
 impl Interpreter {
@@ -22,14 +27,10 @@ impl Interpreter {
 
     fn new() -> Interpreter {
         Interpreter {
-            global_scope: Default::default()
+            global_scope: Default::default(),
         }
     }
 }
-
-
-
-
 
 fn main() {
     if let Some(arg) = args_os().nth(1) {
@@ -44,7 +45,6 @@ fn run_file(path: &Path) {
     let mut interpreter = Interpreter::new();
     run(content.as_str(), &mut interpreter);
 }
-
 
 fn run_prompt() {
     let mut interpreter = Interpreter::new();
@@ -77,5 +77,3 @@ fn run(code: &str, interpreter: &mut Interpreter) {
         }
     }
 }
-
-
