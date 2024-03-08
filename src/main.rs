@@ -65,7 +65,7 @@ fn run_prompt() {
 fn run(code: &str, interpreter: &mut Interpreter) {
     let (scanned, _err) = scan(code);
     let mut parser = Parser::new(&scanned);
-    let parsed = parser.program();
+    let parsed = parser.parse();
     match parsed {
         Ok(parsed) => {
             if let Err(err) = interpreter.interpret(parsed) {

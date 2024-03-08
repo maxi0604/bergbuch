@@ -134,7 +134,7 @@ impl<'a> Parser<'a> {
     }
 
     // Parsing the actual grammar.
-    pub fn program(&mut self) -> Result<Vec<Stmt>, ParseErr> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseErr> {
         let mut res = vec![];
         while self.has_next() {
             res.push(self.declaration()?);
