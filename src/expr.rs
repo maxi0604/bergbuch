@@ -99,7 +99,6 @@ impl Expr {
 
                     (TokenType::Less, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a < b)),
                     (TokenType::LessEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a <= b)),
-                    (TokenType::EqualEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a == b)),
                     (TokenType::GreaterEqual, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a >= b)),
                     (TokenType::Greater, Val::Num(a), Val::Num(b)) => Ok(Val::Bool(a > b)),
 
