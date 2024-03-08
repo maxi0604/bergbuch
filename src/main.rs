@@ -1,14 +1,14 @@
 use std::{
-    env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path
+    env::args_os,
+    fs,
+    io::{stdin, stdout, IsTerminal, Write},
+    path::Path,
 };
-
 
 use bergbuch::parser::Parser;
 use bergbuch::scanner::scan;
 
-
 use bergbuch::interpreter::Interpreter;
-
 
 fn main() {
     if let Some(arg) = args_os().nth(1) {

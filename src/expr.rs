@@ -1,4 +1,8 @@
-use std::{fmt, fmt::{Display, Write}, rc::Rc};
+use std::{
+    fmt,
+    fmt::{Display, Write},
+    rc::Rc,
+};
 
 use crate::scope::ScopeLink;
 use crate::token::TokenType;
