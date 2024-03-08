@@ -8,8 +8,8 @@ pub enum Stmt {
     Expr(ExprRef),
     Declare(Rc<str>, Option<ExprRef>),
     Block(Vec<Stmt>),
-    If(Box<Stmt>),
-    While(Box<Stmt>),
+    If(ExprRef, Box<Stmt>),
+    While(ExprRef, Box<Stmt>),
 }
 
 impl Stmt {
@@ -33,7 +33,17 @@ impl Stmt {
                     stmt.exec(child.clone())?;
                 }
             }
-            _ => todo!("TODO"),
+            Self::If(cond, stmt) => {
+                if cond.eval(scope.clone())?.truthy() {
+                    stmt.exec(Rc::new(RefCell::new(Scope::new_child(scope))))?;
+                }
+            }
+            Self::While(cond, stmt) => {
+                let child = Rc::new(RefCell::new(Scope::new_child(scope.clone())));
+                while cond.eval(scope.clone())?.truthy() {
+                    stmt.exec(child.clone())?;
+                }
+            }
         }
         Ok(())
     }

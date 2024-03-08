@@ -99,7 +99,7 @@ impl<'a> Parser<'a> {
         self.tokens.get(self.index).map(|x| &x.data) == Some(tok)
     }
 
-    fn consume(&mut self, tok: &TokenType) -> Result<(), ParseErr> {
+    fn consume(&mut self, tok: &TokenType) -> Result<&Token, ParseErr> {
         let data = self.peek();
         if data.map(|x| &x.data) != Some(tok) {
             return Err(ParseErr::new(
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
         }
         self.index += 1;
 
-        Ok(())
+        Ok(self.previous())
     }
 
     fn consume_pair(&mut self, tok: &TokenType, other: &Token) -> Result<(), ParseErr> {
@@ -165,11 +165,31 @@ impl<'a> Parser<'a> {
     fn statement(&mut self) -> Result<Stmt, ParseErr> {
         if self.match_next_lits([TokenType::Print]) {
             self.print_statement()
+        } else if self.match_next_lits([TokenType::If]) {
+            self.if_statement()
+        } else if self.match_next_lits([TokenType::While]) {
+            self.while_statement()
         } else if self.match_next_lits([TokenType::LeftBrace]) {
             Ok(Stmt::Block(self.block()?))
         } else {
             self.expression_statement()
         }
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt, ParseErr> {
+        let left_brace = self.consume(&TokenType::LeftParen)?.clone();
+        let cond = self.expression()?;
+        self.consume_pair(&TokenType::RightParen, &left_brace)?;
+        let stmt = self.declaration()?;
+        Ok(Stmt::If(cond, Box::new(stmt)))
+    }
+
+    fn while_statement(&mut self) -> Result<Stmt, ParseErr> {
+        let left_brace = self.consume(&TokenType::LeftParen)?.clone();
+        let cond = self.expression()?;
+        self.consume_pair(&TokenType::RightParen, &left_brace)?;
+        let stmt = self.declaration()?;
+        Ok(Stmt::While(cond, Box::new(stmt)))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseErr> {

@@ -10,6 +10,17 @@ pub enum Val {
     Nil,
 }
 
+impl Val {
+    pub fn truthy(&self) -> bool {
+        match self {
+            Val::String(str) => str.len() > 0,
+            Val::Num(x) => *x != 0.0 && !f64::is_nan(*x),
+            Val::Bool(x) => *x,
+            Val::Nil => false,
+        }
+    }
+}
+
 impl fmt::Display for Val {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
