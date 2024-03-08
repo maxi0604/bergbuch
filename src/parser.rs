@@ -181,7 +181,12 @@ impl<'a> Parser<'a> {
         let cond = self.expression()?;
         self.consume_pair(&TokenType::RightParen, &left_brace)?;
         let stmt = self.declaration()?;
-        Ok(Stmt::If(cond, Box::new(stmt)))
+        if self.match_next_lits([TokenType::Else]) {
+            let other = self.declaration()?;
+            Ok(Stmt::If(cond, Box::new(stmt), Some(Box::new(other))))
+        } else {
+            Ok(Stmt::If(cond, Box::new(stmt), None))
+        }
     }
 
     fn while_statement(&mut self) -> Result<Stmt, ParseErr> {
@@ -249,7 +254,7 @@ impl<'a> Parser<'a> {
     fn logic_and(&mut self) -> ExprResult {
         let mut expr = self.equality();
 
-        while self.match_next_lits([TokenType::Or, TokenType::EqualEqual]) {
+        while self.match_next_lits([TokenType::And]) {
             // TODO: op.clone clones the string literal. Maybe refcount these.
             let op = self.previous().clone().data;
             let right = self.equality();
