@@ -37,7 +37,7 @@ pub enum Val {
     String(Rc<str>),
     Num(f64),
     Bool(bool),
-    LoxFunc(Vec<Rc<str>>, Vec<Stmt>),
+    LoxFunc(Vec<Rc<str>>, Vec<Stmt>, ScopeLink),
     NativeFunc(NativeCall),
     Nil,
 }
@@ -151,11 +151,11 @@ impl Expr {
                 let fun = fun.eval(scope.clone())?;
 
                 match fun {
-                    Val::LoxFunc(expected_args, fun) => {
+                    Val::LoxFunc(expected_args, fun, closure) => {
                         if args.len() != expected_args.len() {
                             return Err(EvalError::WrongArgumentCount(expected_args.len(), args.len()))
                         }
-                        let child = Rc::new(RefCell::new(Scope::new_child(scope.clone())));
+                        let child = Rc::new(RefCell::new(Scope::new_child(closure.clone())));
                         let mut bor = (*child).borrow_mut();
                         for (exp, arg) in expected_args.iter().zip(args) {
                             bor.declare(exp.clone(), arg.eval(scope.clone())?)

@@ -132,3 +132,22 @@ var result = returnsFun()(1);
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
 }
+
+#[test]
+fn closure() {
+    let mut interp = Interpreter::new();
+    interp.run("
+fun returnsFun() {
+    var a = 1;
+    fun inner(foo) {
+        return foo + a;
+    }
+
+    return inner;
+}
+
+var result = returnsFun()(1);
+");
+
+    assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
+}

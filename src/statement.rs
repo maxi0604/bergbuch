@@ -67,7 +67,7 @@ impl Stmt {
                 return Err(ExecInterruption::Return(None));
             }
             Self::Fun(id, args, func) => {
-                (*scope).borrow_mut().declare(id.clone(), Val::LoxFunc(args.clone(), func.clone()))
+                (*scope).borrow_mut().declare(id.clone(), Val::LoxFunc(args.clone(), func.clone(), scope.clone()))
             }
         }
         Ok(())

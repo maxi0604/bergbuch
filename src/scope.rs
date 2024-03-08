@@ -2,7 +2,7 @@ use crate::expr::{EvalError, Val};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub type ScopeLink = Rc<RefCell<Scope>>;
-#[derive(Debug, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Scope {
     stack: HashMap<Rc<str>, Val>,
     parent: Option<Rc<RefCell<Scope>>>,
