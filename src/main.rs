@@ -1,36 +1,14 @@
 use std::{
-    cell::RefCell,
-    env::args_os,
-    fs,
-    io::{stdin, stdout, IsTerminal, Write},
-    path::Path,
-    rc::Rc,
+    borrow::Borrow, cell::RefCell, env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
 };
 
-use bergbuch::expr::EvalError;
+use bergbuch::expr::{EvalError, Val};
 use bergbuch::parser::Parser;
 use bergbuch::scanner::scan;
 use bergbuch::scope::Scope;
 use bergbuch::statement::Stmt;
+use bergbuch::interpreter::Interpreter;
 
-struct Interpreter {
-    global_scope: Rc<RefCell<Scope>>,
-}
-
-impl Interpreter {
-    fn interpret(&mut self, program: impl IntoIterator<Item = Stmt>) -> Result<(), EvalError> {
-        for stmt in program.into_iter() {
-            stmt.exec(self.global_scope.clone())?;
-        }
-        Ok(())
-    }
-
-    fn new() -> Interpreter {
-        Interpreter {
-            global_scope: Default::default(),
-        }
-    }
-}
 
 fn main() {
     if let Some(arg) = args_os().nth(1) {
