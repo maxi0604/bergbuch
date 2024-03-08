@@ -1,5 +1,6 @@
 use bergbuch::interpreter::Interpreter;
 use bergbuch::expr::Val;
+
 #[test]
 fn volume() {
     let mut interp = Interpreter::new();
@@ -17,4 +18,18 @@ volume = 0;
 ");
 
     assert_eq!(interp.get_global("volume"), Some(Val::Num(0.0)));
+}
+
+#[test]
+fn globals() {
+    let mut interp = Interpreter::new();
+    interp.run("
+var result;
+var global = \"outside\";
+{
+  var local = \"inside\";
+  result = global + local;
+}");
+
+    assert_eq!(interp.get_global("result"), Some(Val::String("outsideinside".into())));
 }
