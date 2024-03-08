@@ -1,12 +1,12 @@
 use std::{
-    borrow::Borrow, cell::RefCell, env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
+    env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path
 };
 
-use bergbuch::expr::{EvalError, Val};
+
 use bergbuch::parser::Parser;
 use bergbuch::scanner::scan;
-use bergbuch::scope::Scope;
-use bergbuch::statement::Stmt;
+
+
 use bergbuch::interpreter::Interpreter;
 
 
