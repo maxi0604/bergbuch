@@ -45,6 +45,7 @@ pub enum Expr {
     Literal(Val),
     Variable(Rc<str>),
     Assignment(Rc<str>, ExprRef),
+    Call(ExprRef, Vec<ExprRef>),
 }
 
 impl Expr {
@@ -116,6 +117,7 @@ impl Expr {
                 (*scope).borrow_mut().set(id.clone(), r.clone())?;
                 Ok(r)
             } // Self::Grouping(exp) => exp.eval(),
+            Self::Call(fun, args) => todo!()
               // _ => Err(EvalError::TypeError)
         }
     }

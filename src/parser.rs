@@ -320,8 +320,30 @@ impl<'a> Parser<'a> {
                 self.unary()?,
             )))
         } else {
-            self.primary()
+            self.call()
         }
+    }
+
+    fn call(&mut self) -> ExprResult {
+        let mut expr = self.primary()?;
+        while self.match_next_lits([TokenType::LeftParen]) {
+            expr = self.finish_call(expr)?;
+        }
+        Ok(expr)
+    }
+
+    fn finish_call(&mut self, callee: ExprRef) -> ExprResult {
+        let mut args = vec![];
+        if !self.check(&TokenType::RightParen) {
+            args.push(self.expression()?);
+            while self.match_next_lits([TokenType::Comma]) {
+                args.push(self.expression()?);
+            }
+        }
+
+        self.consume(&TokenType::RightParen)?;
+
+        Ok(Box::new(Expr::Call(callee, args)))
     }
 
     fn primary(&mut self) -> Result<ExprRef, ParseErr> {
