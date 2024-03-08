@@ -8,6 +8,12 @@ pub struct Interpreter {
     global_scope: Rc<RefCell<Scope>>,
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn interpret(&mut self, program: impl IntoIterator<Item = Stmt>) -> Result<(), EvalError> {
         for stmt in program.into_iter() {
