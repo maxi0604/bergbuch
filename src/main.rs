@@ -1,5 +1,5 @@
 use std::{
-    fmt, borrow::{Borrow, BorrowMut}, cell::RefCell, collections::HashMap, env::args_os, fmt::Display, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
+    cell::RefCell, env::args_os, fs, io::{stdin, stdout, IsTerminal, Write}, path::Path, rc::Rc
 };
 
 use bergbuch::scanner::scan;
