@@ -1,8 +1,8 @@
 use std::{
-    fmt::{self, Display, Write}, rc::Rc, time::{self, Duration, SystemTime}, usize
+    borrow::BorrowMut, fmt::{self, Display, Write}, rc::Rc, cell::RefCell, time::{self, Duration, SystemTime}, usize
 };
 
-use crate::scope::ScopeLink;
+use crate::{scope::{ScopeLink, Scope}, statement::{ExecInterruption, Stmt}};
 use crate::token::TokenType;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -37,7 +37,8 @@ pub enum Val {
     String(Rc<str>),
     Num(f64),
     Bool(bool),
-    NativeCall(NativeCall),
+    LoxFunc(Vec<Rc<str>>, Vec<Stmt>),
+    NativeFunc(NativeCall),
     Nil,
 }
 
@@ -47,7 +48,7 @@ impl Val {
             Val::String(str) => str.len() > 0,
             Val::Num(x) => *x != 0.0 && !f64::is_nan(*x),
             Val::Bool(x) => *x,
-            Val::NativeCall(_) => true,
+            Val::NativeFunc(_) | Val::LoxFunc(..) => true,
             Val::Nil => false,
         }
     }
@@ -59,7 +60,8 @@ impl fmt::Display for Val {
             Self::String(x) => write!(f, "{}", x),
             Self::Num(x) => write!(f, "{}", x),
             Self::Bool(x) => write!(f, "{}", x),
-            Self::NativeCall(_) => write!(f, "<native function>"),
+            Self::NativeFunc(_) => write!(f, "<native function>"),
+            Self::LoxFunc(..) => write!(f, "<lox function>"),
             Self::Nil => write!(f, "nil"),
         }
     }
@@ -67,7 +69,7 @@ impl fmt::Display for Val {
 
 pub type ExprRef = Box<Expr>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Binary(TokenType, ExprRef, ExprRef),
     Unary(TokenType, ExprRef),
@@ -149,7 +151,36 @@ impl Expr {
                 let fun = fun.eval(scope.clone())?;
 
                 match fun {
-                    Val::NativeCall(nc) => nc.call(&[]),
+                    Val::LoxFunc(expected_args, fun) => {
+                        if args.len() != expected_args.len() {
+                            return Err(EvalError::WrongArgumentCount(expected_args.len(), args.len()))
+                        }
+                        let child = Rc::new(RefCell::new(Scope::new_child(scope.clone())));
+                        let mut bor = (*child).borrow_mut();
+                        for (exp, arg) in expected_args.iter().zip(args) {
+                            bor.declare(exp.clone(), arg.eval(scope.clone())?)
+                        }
+                        // Otherwise eval panics because a mutable borrow is held.
+                        drop(bor);
+
+                        for stmt in fun.iter() {
+                            match stmt.exec(child.clone()) {
+                                Ok(()) => continue,
+                                Err(ExecInterruption::Err(e)) => return Err(e),
+                                Err(ExecInterruption::Return(Some(val))) => return Ok(val),
+                                Err(ExecInterruption::Return(None)) => return Ok(Val::Nil),
+                            };
+                        }
+
+                        Ok(Val::Nil)
+                    }
+                    Val::NativeFunc(nc) => {
+                        let mut evaluated = Vec::with_capacity(args.len());
+                        for arg in args {
+                            evaluated.push(arg.eval(scope.clone())?);
+                        }
+                        nc.call(&evaluated)
+                    }
                     _ => Err(EvalError::TypeError)
                 }
             }
@@ -162,7 +193,8 @@ impl Expr {
 pub enum EvalError {
     TypeError,
     UndefinedVariable,
-    WrongArgumentCount(usize, usize)
+    WrongArgumentCount(usize, usize),
+    UnexpectedReturn
 }
 
 impl Display for EvalError {
@@ -171,6 +203,16 @@ impl Display for EvalError {
             Self::TypeError => write!(f, "Type error."),
             Self::UndefinedVariable => write!(f, "Undefined variable."),
             Self::WrongArgumentCount(exp, act) => write!(f, "Expected {exp} arguments, got {act}"),
+            Self::UnexpectedReturn => write!(f, "`return` outside of function."),
+        }
+    }
+}
+
+impl From<ExecInterruption> for EvalError {
+    fn from(value: ExecInterruption) -> Self {
+        match value {
+            ExecInterruption::Err(e) => e,
+            ExecInterruption::Return(_) => Self::UnexpectedReturn,
         }
     }
 }

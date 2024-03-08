@@ -40,7 +40,7 @@ impl Interpreter {
 
     pub fn new() -> Interpreter {
         let mut global_scope = Scope::default();
-        global_scope.declare("clock".into(), Val::NativeCall(NativeCall::Clock));
+        global_scope.declare("clock".into(), Val::NativeFunc(NativeCall::Clock));
         Interpreter {
             global_scope: Rc::new(RefCell::new(global_scope)),
         }

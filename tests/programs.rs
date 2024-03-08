@@ -79,3 +79,21 @@ result = 6;
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(6.0)));
 }
+
+#[test]
+fn simple_function() {
+    let mut interp = Interpreter::new();
+    interp.run("
+fun foo(bar) {
+    var a = 1;
+    if (a > 1) {
+        a = a + 1;
+    }
+    return bar + a;
+}
+
+var result = foo(1);
+");
+
+    assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
+}

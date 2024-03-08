@@ -2,7 +2,7 @@ use crate::expr::*;
 use crate::statement::Stmt;
 use crate::token::*;
 
-use std::{fmt, fmt::Display};
+use std::{fmt, fmt::Display, rc::Rc};
 
 type ExprResult = Result<ExprRef, ParseErr>;
 
@@ -112,6 +112,22 @@ impl<'a> Parser<'a> {
         Ok(self.previous())
     }
 
+    // TODO: Hack
+    fn consume_identifier(&mut self) -> Result<Rc<str>, ParseErr> {
+        let data = self.peek();
+        if let Some(TokenType::Identifier(id)) = data.map(|x| &x.data) {
+            let ret = id.clone();
+            self.index += 1;
+            Ok(ret)
+        } else {
+            Err(ParseErr::new(
+                ParseErrType::ExpectedToken(TokenType::Identifier("".into()), data.cloned()),
+                None,
+            ))
+        }
+
+    }
+
     fn consume_pair(&mut self, tok: &TokenType, other: &Token) -> Result<(), ParseErr> {
         let data = self.peek();
         if data.map(|x| &x.data) != Some(tok) {
@@ -157,9 +173,30 @@ impl<'a> Parser<'a> {
             } else {
                 Err(ParseErr::new(ParseErrType::NotLvalue, self.peek().cloned()))
             }
+        } else if self.match_next_lits([TokenType::Fun]) {
+            self.function()
         } else {
             self.statement()
         }
+    }
+
+    fn function(&mut self) -> Result<Stmt, ParseErr> {
+        let id = self.consume_identifier()?;
+        let left = self.consume(&TokenType::LeftParen)?.clone();
+        let mut params = vec![];
+        if !self.check(&TokenType::RightParen) {
+            params.push(self.consume_identifier()?);
+            while self.match_next_lits([TokenType::Comma]) {
+                params.push(self.consume_identifier()?);
+            }
+        }
+
+        self.consume_pair(&TokenType::RightParen, &left)?;
+        self.consume(&TokenType::LeftBrace)?;
+
+        let fun = self.block()?;
+
+        Ok(Stmt::Fun(id, params, fun))
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseErr> {
@@ -169,11 +206,25 @@ impl<'a> Parser<'a> {
             self.if_statement()
         } else if self.match_next_lits([TokenType::While]) {
             self.while_statement()
+        } else if self.match_next_lits([TokenType::Return]) {
+            self.return_statement()
         } else if self.match_next_lits([TokenType::LeftBrace]) {
             Ok(Stmt::Block(self.block()?))
         } else {
             self.expression_statement()
         }
+    }
+
+    fn return_statement(&mut self) -> Result<Stmt, ParseErr> {
+        let val = if !self.check(&TokenType::Semicolon) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(&TokenType::Semicolon)?;
+
+        Ok(Stmt::Return(val))
     }
 
     fn if_statement(&mut self) -> Result<Stmt, ParseErr> {
