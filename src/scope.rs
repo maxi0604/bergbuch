@@ -28,6 +28,7 @@ impl Scope {
         }
     }
 
+    #[allow(clippy::map_entry)]
     pub fn define(&mut self, id: Rc<str>, val: Val) {
         if self.stack.contains_key(&id) {
             self.stack.insert(id, val);
