@@ -1,4 +1,4 @@
-use std::{fmt, fmt::Display, rc::Rc};
+use std::{fmt, fmt::{Display, Write}, rc::Rc};
 
 use crate::scope::ScopeLink;
 use crate::token::TokenType;
@@ -72,8 +72,19 @@ impl Expr {
                     (TokenType::Or, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
                     (TokenType::And, Val::Bool(_), Val::Bool(b)) => Ok(Val::Bool(b)),
 
-                    (TokenType::Plus, Val::String(a), Val::String(b)) => {
+                    // The book only allow concatenating two strings or adding numbers.
+                    // I allow stringifying values here.
+                    (TokenType::Plus, Val::String(a), b) => {
                         let mut c = a.to_string();
+                        // Writing to string can't fail.
+                        let _ = write!(c, "{}", b);
+                        Ok(Val::String(c.into()))
+                    }
+
+                    (TokenType::Plus, a, Val::String(b)) => {
+                        let mut c = String::new();
+                        // Writing to string can't fail.
+                        let _ = write!(c, "{}", a);
                         c.push_str(&b);
                         Ok(Val::String(c.into()))
                     }

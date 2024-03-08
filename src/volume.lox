@@ -9,3 +9,5 @@ volume = 0;
   var volume = 3 * 4 * 5;
   print volume;
 }
+
+print volume;
