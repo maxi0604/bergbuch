@@ -150,7 +150,11 @@ impl Resolver {
                     }
                 }
             }
-            Expr::Get(target, _) => self.resolve_expr(target, errs)
+            Expr::Get(target, _) => self.resolve_expr(target, errs),
+            Expr::Set(target, _, val) => {
+                self.resolve_expr(target, errs);
+                self.resolve_expr(val, errs);
+            }
 
         }
     }

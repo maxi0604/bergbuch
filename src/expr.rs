@@ -86,6 +86,7 @@ pub enum Expr {
     Assignment(Rc<str>, usize, ExprRef),
     Call(ExprRef, Vec<ExprRef>),
     Get(ExprRef, Rc<str>),
+    Set(ExprRef, Rc<str>, ExprRef),
 }
 
 impl Expr {
@@ -204,6 +205,15 @@ impl Expr {
                 };
                 let borrow = (*values).borrow();
                 borrow.get(id).or(class.0.get(id).map(|x| Val::LoxFunc(x.clone())).as_ref()).ok_or(EvalErr::UndefinedVariable).cloned()
+            }
+            Self::Set(target, id, val) => {
+                let Val::LoxInstance(_, vals) = target.eval(scope.clone())? else {
+                    return Err(EvalErr::TypeError);
+                };
+                let mut borrow = (*vals).borrow_mut();
+                let val = val.eval(scope.clone())?;
+                borrow.insert(id.clone(), val.clone());
+                Ok(val)
             }
         }
     }
