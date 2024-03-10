@@ -163,3 +163,25 @@ var result = returnsFun()(1);
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
 }
+
+#[test]
+fn leaky_closure() {
+    let mut interp = Interpreter::new();
+    interp.run("
+var result1;
+var result2;
+var a = \"global\";
+{
+  fun showA() {
+    return a;
+  }
+
+  result1 = showA();
+  var a = \"block\";
+  result2 = showA();
+}
+");
+
+    assert_eq!(interp.get_global("result1"), Some(Val::String("global".into())));
+    assert_eq!(interp.get_global("result2"), Some(Val::String("global".into())));
+}

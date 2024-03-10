@@ -48,15 +48,14 @@ impl Stmt {
             }
             Self::If(cond, stmt, other) => {
                 if cond.eval(scope.clone())?.truthy() {
-                    stmt.exec(Rc::new(RefCell::new(Scope::new_child(scope))))?;
+                    stmt.exec(scope.clone())?;
                 } else if let Some(other) = other {
-                    other.exec(Rc::new(RefCell::new(Scope::new_child(scope))))?;
+                    other.exec(scope.clone())?;
                 }
             }
             Self::While(cond, stmt) => {
-                let child = Rc::new(RefCell::new(Scope::new_child(scope.clone())));
                 while cond.eval(scope.clone())?.truthy() {
-                    stmt.exec(child.clone())?;
+                    stmt.exec(scope.clone())?;
                 }
             }
             Self::Return(Some(expr)) => {

@@ -5,51 +5,51 @@ pub type ScopeLink = Rc<RefCell<Scope>>;
 #[derive(Debug, PartialEq, Default)]
 pub struct Scope {
     stack: HashMap<Rc<str>, Val>,
-    parent: Option<Rc<RefCell<Scope>>>,
+    parent: Option<ScopeLink>,
 }
 
 impl Scope {
-    pub fn get(&self, id: &str) -> Option<Val> {
-        if let Some(val) = self.stack.get(id) {
-            return Some(val.clone());
+    pub fn try_get_here(&self, id: &str) -> Option<Val> {
+        self.stack.get(id).cloned()
+    }
+    pub fn get(&self, id: &str, dist: usize) -> Val {
+        // self is of type &Scope, the rest of the elements
+        // of the chain are of type ScopeLink. Do one resolution before the loop.
+        if dist == 0 {
+            return self.stack.get(id).cloned()
+                .expect("Reference to undefined value should have been caught in resolution");
         }
 
-        let mut cur = self.parent.clone()?;
-        loop {
-            let borrow = (*cur).borrow();
-            if let Some(val) = borrow.stack.get(id) {
-                return Some(val.clone());
-            }
+        let mut cur = self.parent.clone().expect(&format!("Resolver gave invalid depth {dist}"));
 
-            let next = borrow.parent.clone()?;
+        for _ in 0..dist - 1 {
+            let borrow = (*cur).borrow();
+            let next = borrow.parent.clone().expect("Resolver gave invalid depth, I've reached the bottom of the stack");
             drop(borrow);
             cur = next;
         }
+
+        let borrow = (*cur).borrow();
+        borrow.stack.get(id).cloned()
+                .expect("Reference to undefined value should have been caught in resolution")
     }
 
     #[allow(clippy::map_entry)]
-    pub fn set(&mut self, id: Rc<str>, val: Val) -> Result<(), EvalError> {
-        if self.stack.contains_key(&id) {
+    pub fn set(&mut self, id: Rc<str>, dist: usize, val: Val) {
+        if dist == 0 {
             self.stack.insert(id, val);
-            return Ok(());
+            return;
         }
 
-        let mut cur = self.parent.clone();
-        loop {
-            let Some(real) = cur else {
-                break;
-            };
-
-            let mut borrow = (*real).borrow_mut();
-            if borrow.stack.contains_key(&id) {
-                borrow.stack.insert(id, val);
-                return Ok(());
-            }
-
-            cur = borrow.parent.clone();
+        let mut cur = self.parent.clone().expect(&format!("Resolver gave invalid depth {dist}"));
+        for _ in 0..dist-1 {
+            let borrow = (*cur).borrow();
+            let next = borrow.parent.clone().expect("Resolver gave invalid depth, I've reached the bottom of the stack");
+            drop(borrow);
+            cur = next;
         }
 
-        Err(EvalError::UndefinedVariable)
+        (*cur).borrow_mut().stack.insert(id, val);
     }
 
     pub fn declare(&mut self, id: Rc<str>, val: Val) {

@@ -36,7 +36,9 @@ fn run_prompt() {
     }
 
     for line in stdin().lines() {
-        interpreter.run(&line.expect("Error reading stdin"));
+        if let Err(err) = interpreter.run(&line.expect("Error reading stdin")) {
+            println!("{}", err);
+        }
         if stdin().is_terminal() {
             print!("> ");
             stdout().flush().unwrap();

@@ -1,12 +1,13 @@
+use crate::resolver::{Resolver, ResolverErr};
 use crate::scanner::scan;
 use crate::expr::{EvalError, NativeCall, Val};
-use crate::parser::Parser;
-use crate::scope::Scope;
+use crate::parser::{ParseErr, Parser};
+use crate::scope::{Scope, ScopeLink};
 use crate::statement::Stmt;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, fmt};
 
 pub struct Interpreter {
-    global_scope: Rc<RefCell<Scope>>,
+    global_scope: ScopeLink,
 }
 
 impl Default for Interpreter {
@@ -15,24 +16,60 @@ impl Default for Interpreter {
     }
 }
 
+#[derive(Debug)]
+pub enum InterpretErr {
+    ParseError(ParseErr),
+    ResolverErr(ResolverErr),
+    EvalErr(EvalError),
+}
+
+impl fmt::Display for InterpretErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::EvalErr(x)  => write!(f, "{x}"),
+            Self::ParseError(x) => write!(f, "{x}"),
+            Self::ResolverErr(x) => write!(f, "{x}"),
+        }
+
+    }
+
+}
+
+impl From<ParseErr> for InterpretErr {
+    fn from(val: ParseErr) -> Self {
+        InterpretErr::ParseError(val)
+    }
+}
+
+impl From<ResolverErr> for InterpretErr {
+    fn from(val: ResolverErr) -> Self {
+        InterpretErr::ResolverErr(val)
+    }
+}
+
+impl From<EvalError> for InterpretErr {
+    fn from(val: EvalError) -> Self {
+        InterpretErr::EvalErr(val)
+    }
+}
+
 impl Interpreter {
-    pub fn run(&mut self, code: &str) {
+    pub fn run(&mut self, code: &str) -> Result<(), InterpretErr> {
         let (scanned, _err) = scan(code);
         let mut parser = Parser::new(&scanned);
-        let parsed = parser.parse();
-        match parsed {
-            Ok(parsed) => {
-                if let Err(err) = self.interpret(parsed) {
-                    println!("{}", err);
-                }
-            }
-            Err(err) => {
-                println!("{}", err);
-            }
+        let mut parsed = parser.parse()?;
+        let mut resolver = Resolver::new();
+        resolver.resolve(&mut parsed);
+        if let Err(err) = self.interpret(&parsed) {
+            println!("{}", err);
+            Err(err.into())
+        } else {
+            Ok(())
         }
     }
-    pub fn interpret(&mut self, program: impl IntoIterator<Item = Stmt>) -> Result<(), EvalError> {
-        for stmt in program.into_iter() {
+
+    pub fn interpret(&mut self, program: &[Stmt]) -> Result<(), EvalError> {
+        for stmt in program.iter() {
             stmt.exec(self.global_scope.clone())?;
         }
         Ok(())
@@ -47,6 +84,6 @@ impl Interpreter {
     }
 
     pub fn get_global(&self, id: &str) -> Option<Val> {
-        (*self.global_scope).borrow().get(id)
+        (*self.global_scope).borrow().try_get_here(id)
     }
 }

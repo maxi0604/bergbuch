@@ -13,7 +13,7 @@ pub enum ParseErrType {
     NotLvalue,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParseErr {
     data: ParseErrType,
     source: Option<Token>,
@@ -278,8 +278,8 @@ impl<'a> Parser<'a> {
         let expr = self.logic_or();
         if self.match_next_lits([TokenType::Equal]) {
             let val = self.logic_or();
-            if let Expr::Variable(tok) = *expr?.clone() {
-                Ok(Box::new(Expr::Assignment(tok.clone(), val?)))
+            if let Expr::Variable(tok, _) = *expr?.clone() {
+                Ok(Box::new(Expr::Assignment(tok.clone(), 0, val?)))
             } else {
                 Err(ParseErr::new(ParseErrType::NotLvalue, None))
             }
@@ -417,7 +417,7 @@ impl<'a> Parser<'a> {
                 self.consume_pair(&TokenType::RightParen, &clone)?;
                 expr
             }
-            TokenType::Identifier(x) => Expr::Variable(x.clone()),
+            TokenType::Identifier(x) => Expr::Variable(x.clone(), 0),
             // TODO: Error reporting, synchronize()
             _ => {
                 return Err(ParseErr::new(

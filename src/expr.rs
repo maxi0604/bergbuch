@@ -74,8 +74,8 @@ pub enum Expr {
     Binary(TokenType, ExprRef, ExprRef),
     Unary(TokenType, ExprRef),
     Literal(Val),
-    Variable(Rc<str>),
-    Assignment(Rc<str>, ExprRef),
+    Variable(Rc<str>, usize),
+    Assignment(Rc<str>, usize, ExprRef),
     Call(ExprRef, Vec<ExprRef>),
 }
 
@@ -138,13 +138,12 @@ impl Expr {
                     _ => Err(EvalError::TypeError),
                 }
             }
-            Self::Variable(id) => (*scope)
+            Self::Variable(id, dist) => Ok((*scope)
                 .borrow()
-                .get(id)
-                .ok_or(EvalError::UndefinedVariable),
-            Self::Assignment(id, val) => {
+                .get(id, *dist)),
+            Self::Assignment(id, dist, val) => {
                 let r = val.eval(scope.clone())?;
-                (*scope).borrow_mut().set(id.clone(), r.clone())?;
+                (*scope).borrow_mut().set(id.clone(), *dist, r.clone());
                 Ok(r)
             } // Self::Grouping(exp) => exp.eval(),
             Self::Call(fun, args) => {
