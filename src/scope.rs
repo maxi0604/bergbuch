@@ -1,4 +1,4 @@
-use crate::expr::{EvalErr, Val};
+use crate::expr::{Val};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub type ScopeLink = Rc<RefCell<Scope>>;

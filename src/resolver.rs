@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::fmt::{Display, self};
-use crate::expr::{Expr, ExprRef};
+use crate::expr::{Expr};
 
 use crate::statement::Stmt;
 

@@ -30,7 +30,8 @@ var global = \"outside\";
 {
   var local = \"inside\";
   result = global + local;
-}");
+}
+").unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::String("outsideinside".into())));
 }
