@@ -160,19 +160,7 @@ impl<'a> Parser<'a> {
 
     fn declaration(&mut self) -> Result<Stmt, ParseErr> {
         if self.match_next_lits([TokenType::Var]) {
-            if let Some(TokenType::Identifier(id)) = self.advance().map(|x| &x.data) {
-                let id = id.clone();
-                if self.match_next_lits([TokenType::Equal]) {
-                    let value = self.equality()?;
-                    self.consume(&TokenType::Semicolon)?;
-                    Ok(Stmt::Declare(id, Some(value)))
-                } else {
-                    self.consume(&TokenType::Semicolon)?;
-                    Ok(Stmt::Declare(id, None))
-                }
-            } else {
-                Err(ParseErr::new(ParseErrType::NotLvalue, self.peek().cloned()))
-            }
+            self.var_declaration()
         } else if self.match_next_lits([TokenType::Fun]) {
             self.function()
         } else if self.match_next_lits([TokenType::Class]) {
@@ -181,6 +169,23 @@ impl<'a> Parser<'a> {
         else {
             self.statement()
         }
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, ParseErr> {
+        if let Some(TokenType::Identifier(id)) = self.advance().map(|x| &x.data) {
+            let id = id.clone();
+            if self.match_next_lits([TokenType::Equal]) {
+                let value = self.equality()?;
+                self.consume(&TokenType::Semicolon)?;
+                Ok(Stmt::Declare(id, Some(value)))
+            } else {
+                self.consume(&TokenType::Semicolon)?;
+                Ok(Stmt::Declare(id, None))
+            }
+        } else {
+            Err(ParseErr::new(ParseErrType::NotLvalue, self.peek().cloned()))
+        }
+
     }
 
     fn class(&mut self) -> Result<Stmt, ParseErr> {
@@ -224,6 +229,8 @@ impl<'a> Parser<'a> {
             self.if_statement()
         } else if self.match_next_lits([TokenType::While]) {
             self.while_statement()
+        } else if self.match_next_lits([TokenType::For]) {
+            self.for_statement()
         } else if self.match_next_lits([TokenType::Return]) {
             self.return_statement()
         } else if self.match_next_lits([TokenType::LeftBrace]) {
@@ -256,6 +263,41 @@ impl<'a> Parser<'a> {
         } else {
             Ok(Stmt::If(cond, Box::new(stmt), None))
         }
+    }
+
+    fn for_statement(&mut self) -> Result<Stmt, ParseErr> {
+        let left_paren = self.consume(&TokenType::LeftParen)?.clone();
+        let mut result = vec![];
+        if self.match_next_lits([TokenType::Var]) {
+            result.push(self.var_declaration()?);
+        } else if !self.match_next_lits([TokenType::Semicolon]) {
+            result.push(self.expression_statement()?);
+        }
+
+        let cond = if self.check(&TokenType::Semicolon) {
+            Box::new(Expr::Literal(Val::Bool(true)))
+        } else {
+            self.expression()?
+        };
+
+        self.consume(&TokenType::Semicolon)?;
+
+        let increment = if self.check(&TokenType::RightParen) {
+            None
+        } else {
+            Some(self.expression()?)
+        };
+
+
+        self.consume_pair(&TokenType::RightParen, &left_paren)?;
+        let mut body = self.statement()?;
+
+        if let Some(increment) = increment {
+            body = Stmt::Block(vec![body, Stmt::Expr(increment)]);
+        }
+
+        result.push(Stmt::While(cond, Box::new(body)));
+        Ok(Stmt::Block(result))
     }
 
     fn while_statement(&mut self) -> Result<Stmt, ParseErr> {

@@ -225,3 +225,16 @@ book.name();
     assert_eq!(interp.get_global("resultBefore"), Some(Val::Nil));
     assert_eq!(interp.get_global("result"), Some(Val::String("Crafting Interpreters".into())));
 }
+
+
+#[test]
+fn simple_for() {
+    let mut interp = Interpreter::new();
+    interp.run("
+var result = 0;
+for (var i = 0; i < 10; i = i + 1)
+    result = result + i;
+").unwrap();
+
+    assert_eq!(interp.get_global("result"), Some(Val::Num(45.0)));
+}
