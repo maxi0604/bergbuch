@@ -1,5 +1,5 @@
 use std::{
-    fmt::{self, Display, Write}, rc::Rc, cell::RefCell, time::{self, Duration},
+    fmt::{self, Display, Write}, rc::Rc, cell::RefCell, time::{self, Duration}, collections::HashMap
 };
 
 use crate::{scope::{ScopeLink, Scope}, statement::{ExecInterruption, Stmt}};
@@ -33,11 +33,17 @@ impl NativeCall {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Func(pub Vec<Rc<str>>, pub Vec<Stmt>, pub ScopeLink);
+#[derive(Debug, PartialEq, Clone)]
+pub struct Class(pub HashMap<Rc<str>, Func>);
+#[derive(Debug, PartialEq, Clone)]
 pub enum Val {
     String(Rc<str>),
     Num(f64),
     Bool(bool),
-    LoxFunc(Vec<Rc<str>>, Vec<Stmt>, ScopeLink),
+    LoxFunc(Func),
+    LoxClass(Rc<Class>),
+    LoxInstance(Rc<Class>, Rc<RefCell<HashMap<Rc<str>, Val>>>),
     NativeFunc(NativeCall),
     Nil,
 }
@@ -48,8 +54,8 @@ impl Val {
             Val::String(str) => str.len() > 0,
             Val::Num(x) => *x != 0.0 && !f64::is_nan(*x),
             Val::Bool(x) => *x,
-            Val::NativeFunc(_) | Val::LoxFunc(..) => true,
             Val::Nil => false,
+            _ => true,
         }
     }
 }
@@ -62,6 +68,8 @@ impl fmt::Display for Val {
             Self::Bool(x) => write!(f, "{}", x),
             Self::NativeFunc(_) => write!(f, "<native function>"),
             Self::LoxFunc(..) => write!(f, "<lox function>"),
+            Self::LoxClass(..) => write!(f, "<lox class>"),
+            Self::LoxInstance(..) => write!(f, "<lox instance>"),
             Self::Nil => write!(f, "nil"),
         }
     }
@@ -77,6 +85,7 @@ pub enum Expr {
     Variable(Rc<str>, usize),
     Assignment(Rc<str>, usize, ExprRef),
     Call(ExprRef, Vec<ExprRef>),
+    Get(ExprRef, Rc<str>),
 }
 
 impl Expr {
@@ -152,7 +161,7 @@ impl Expr {
                 let fun = fun.eval(scope.clone())?;
 
                 match fun {
-                    Val::LoxFunc(expected_args, fun, closure) => {
+                    Val::LoxFunc(Func(expected_args, fun, closure)) => {
                         if args.len() != expected_args.len() {
                             return Err(EvalErr::WrongArgumentCount(expected_args.len(), args.len()))
                         }
@@ -182,10 +191,20 @@ impl Expr {
                         }
                         nc.call(&evaluated)
                     }
+                    Val::LoxClass(class) => {
+                        Ok(Val::LoxInstance(class.clone(), RefCell::new(HashMap::new()).into()))
+                    }
                     _ => Err(EvalErr::TypeError)
                 }
             }
-              // _ => Err(EvalError::TypeError)
+            Self::Get(target, id) => {
+                let target = target.eval(scope.clone())?;
+                let Val::LoxInstance(class, values) = target else {
+                    return Err(EvalErr::TypeError);
+                };
+                let borrow = (*values).borrow();
+                borrow.get(id).or(class.0.get(id).map(|x| Val::LoxFunc(x.clone())).as_ref()).ok_or(EvalErr::UndefinedVariable).cloned()
+            }
         }
     }
 }

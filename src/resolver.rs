@@ -109,6 +109,10 @@ impl Resolver {
                 }
                 self.pop_scope();
             }
+            Stmt::Class(id, _) => {
+                self.declare(id.clone());
+                self.define(id.clone());
+            }
         }
     }
 
@@ -143,6 +147,7 @@ impl Resolver {
                     }
                 }
             }
+            Expr::Get(target, _) => self.resolve_expr(target, errs)
 
         }
     }

@@ -1,6 +1,6 @@
-use crate::expr::{EvalErr, ExprRef, Val};
+use crate::expr::{Class, EvalErr, ExprRef, Func, Val};
 use crate::scope::{Scope, ScopeLink};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, collections::HashMap};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
@@ -11,7 +11,8 @@ pub enum Stmt {
     If(ExprRef, Box<Stmt>, Option<Box<Stmt>>),
     While(ExprRef, Box<Stmt>),
     Return(Option<ExprRef>),
-    Fun(Rc<str>, Vec<Rc<str>>, Vec<Stmt>)
+    Fun(Rc<str>, Vec<Rc<str>>, Vec<Stmt>),
+    Class(Rc<str>, Vec<Stmt>),
 }
 
 pub enum ExecInterruption {
@@ -65,7 +66,18 @@ impl Stmt {
                 return Err(ExecInterruption::Return(None));
             }
             Self::Fun(id, args, func) => {
-                (*scope).borrow_mut().declare(id.clone(), Val::LoxFunc(args.clone(), func.clone(), scope.clone()))
+                (*scope).borrow_mut().declare(id.clone(), Val::LoxFunc(Func(args.clone(), func.clone(), scope.clone())))
+            }
+            Self::Class(id, funs) => {
+                let mut funcs = HashMap::new();
+                for fun in funs.iter() {
+                    let Self::Fun(id, args, body) = fun else {
+                        panic!("Classes must only contain functions. Did the parser mess up?");
+                    };
+                    let func = Func(args.clone(), body.clone(), scope.clone());
+                    funcs.insert(id.clone(), func);
+                }
+                (*scope).borrow_mut().declare(id.clone(), Val::LoxClass(Class(funcs).into()))
             }
         }
         Ok(())

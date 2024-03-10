@@ -175,9 +175,27 @@ impl<'a> Parser<'a> {
             }
         } else if self.match_next_lits([TokenType::Fun]) {
             self.function()
-        } else {
+        } else if self.match_next_lits([TokenType::Class]) {
+            self.class()
+        }
+        else {
             self.statement()
         }
+    }
+
+    fn class(&mut self) -> Result<Stmt, ParseErr> {
+        let id = self.consume_identifier()?;
+        let left_brace = self.consume(&TokenType::LeftBrace)?.clone();
+        let mut funs = vec![];
+
+        while !self.check(&TokenType::RightBrace) && self.has_next() {
+            funs.push(self.function()?);
+        }
+
+        self.consume_pair(&TokenType::RightBrace, &left_brace)?;
+
+        Ok(Stmt::Class(id, funs))
+
     }
 
     fn function(&mut self) -> Result<Stmt, ParseErr> {
@@ -381,8 +399,14 @@ impl<'a> Parser<'a> {
 
     fn call(&mut self) -> ExprResult {
         let mut expr = self.primary()?;
-        while self.match_next_lits([TokenType::LeftParen]) {
-            expr = self.finish_call(expr)?;
+        loop {
+            if self.match_next_lits([TokenType::LeftParen]) {
+                expr = self.finish_call(expr)?;
+            } else if self.match_next_lits([TokenType::Dot]) {
+                expr = self.get_expr(expr)?;
+            } else {
+                break;
+            }
         }
         Ok(expr)
     }
@@ -399,6 +423,12 @@ impl<'a> Parser<'a> {
         self.consume(&TokenType::RightParen)?;
 
         Ok(Box::new(Expr::Call(callee, args)))
+    }
+
+    fn get_expr(&mut self, target: ExprRef) -> ExprResult {
+        let id = self.consume_identifier()?;
+
+        Ok(Box::new(Expr::Get(target, id)))
     }
 
     fn primary(&mut self) -> Result<ExprRef, ParseErr> {
