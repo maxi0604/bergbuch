@@ -66,7 +66,7 @@ impl Stmt {
                 return Err(ExecInterruption::Return(None));
             }
             Self::Fun(id, args, func) => {
-                (*scope).borrow_mut().declare(id.clone(), Val::LoxFunc(Func(args.clone(), func.clone(), scope.clone())))
+                (*scope).borrow_mut().declare(id.clone(), Val::LoxFunc(Func(args.clone().into(), func.clone().into(), scope.clone())))
             }
             Self::Class(id, funs) => {
                 let mut funcs = HashMap::new();
@@ -74,7 +74,7 @@ impl Stmt {
                     let Self::Fun(id, args, body) = fun else {
                         panic!("Classes must only contain functions. Did the parser mess up?");
                     };
-                    let func = Func(args.clone(), body.clone(), scope.clone());
+                    let func = Func(args.clone().into(), body.clone().into(), scope.clone());
                     funcs.insert(id.clone(), func);
                 }
                 (*scope).borrow_mut().declare(id.clone(), Val::LoxClass(Class(funcs).into()))

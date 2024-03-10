@@ -33,7 +33,7 @@ impl NativeCall {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Func(pub Vec<Rc<str>>, pub Vec<Stmt>, pub ScopeLink);
+pub struct Func(pub Rc<[Rc<str>]>, pub Rc<[Stmt]>, pub ScopeLink);
 #[derive(Debug, PartialEq, Clone)]
 pub struct Class(pub HashMap<Rc<str>, Func>);
 #[derive(Debug, PartialEq, Clone)]
