@@ -25,7 +25,9 @@ fn main() -> ExitCode {
 fn run_file(path: &Path) {
     let content = fs::read_to_string(path).expect("Error reading file.");
     let mut interpreter = Interpreter::new();
-    interpreter.run(content.as_str());
+    if let Err(err) = interpreter.run(content.as_str()) {
+        println!("error: {}", err);
+    }
 }
 
 fn run_prompt() {
@@ -37,7 +39,7 @@ fn run_prompt() {
 
     for line in stdin().lines() {
         if let Err(err) = interpreter.run(&line.expect("Error reading stdin")) {
-            println!("{}", err);
+            println!("error: {}", err);
         }
         if stdin().is_terminal() {
             print!("> ");

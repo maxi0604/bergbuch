@@ -64,7 +64,7 @@ impl Interpreter {
         let mut parser = Parser::new(&scanned);
         let mut parsed = parser.parse()?;
         let mut resolver = Resolver::new();
-        resolver.resolve(&mut parsed);
+        resolver.resolve(&mut parsed)?;
         if let Err(err) = self.interpret(&parsed) {
             println!("{}", err);
             Err(err.into())
