@@ -231,9 +231,9 @@ impl<'a> Parser<'a> {
         let left_brace = self.consume(&TokenType::LeftParen)?.clone();
         let cond = self.expression()?;
         self.consume_pair(&TokenType::RightParen, &left_brace)?;
-        let stmt = self.declaration()?;
+        let stmt = self.statement()?;
         if self.match_next_lits([TokenType::Else]) {
-            let other = self.declaration()?;
+            let other = self.statement()?;
             Ok(Stmt::If(cond, Box::new(stmt), Some(Box::new(other))))
         } else {
             Ok(Stmt::If(cond, Box::new(stmt), None))
@@ -244,7 +244,7 @@ impl<'a> Parser<'a> {
         let left_brace = self.consume(&TokenType::LeftParen)?.clone();
         let cond = self.expression()?;
         self.consume_pair(&TokenType::RightParen, &left_brace)?;
-        let stmt = self.declaration()?;
+        let stmt = self.statement()?;
         Ok(Stmt::While(cond, Box::new(stmt)))
     }
 
