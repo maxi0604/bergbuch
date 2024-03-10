@@ -17,10 +17,26 @@ fn scopes_separated() {
     print x;
     var z = x + y;
 }
-    ").unwrap_err();
+").unwrap_err();
 
     match err {
         InterpretErr::ResolverErrs(x) => assert!(x.iter().all(|ev| matches!(ev, ResolverErr::UndeclaredVar(_)))),
         x => panic!("{x:?} should not be reported here.")
     }
 }
+
+
+#[test]
+fn reference_during_decl() {
+    let mut interp = Interpreter::new();
+    let err = interp.run("
+var a = \"foo\";
+var a = a;
+").unwrap_err();
+
+    match err {
+        InterpretErr::ResolverErrs(x) => assert!(x.iter().all(|ev| matches!(ev, ResolverErr::UseWhileDeclaring))),
+        x => panic!("{x:?} should not be reported here.")
+    }
+}
+
