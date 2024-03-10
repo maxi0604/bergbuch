@@ -83,7 +83,7 @@ pub enum Expr {
     Unary(TokenType, ExprRef),
     Literal(Val),
     Variable(Rc<str>, usize),
-    Assignment(Rc<str>, usize, ExprRef),
+    Set(Rc<str>, usize, ExprRef),
     Call(ExprRef, Vec<ExprRef>),
     Get(ExprRef, Rc<str>),
 }
@@ -152,7 +152,7 @@ impl Expr {
             Self::Variable(id, dist) => Ok((*scope)
                 .borrow()
                 .get(id, *dist)),
-            Self::Assignment(id, dist, val) => {
+            Self::Set(id, dist, val) => {
                 let r = val.eval(scope.clone())?;
                 (*scope).borrow_mut().set(id.clone(), *dist, r.clone());
                 Ok(r)

@@ -133,7 +133,7 @@ impl Resolver {
                 self.resolve_expr(r, errs);
             }
             Expr::Literal(_) => {},
-            Expr::Assignment(id, dist, val) => {
+            Expr::Set(id, dist, val) => {
                 self.resolve_expr(val, errs);
                 match self.resolve_id(id) {
                     Ok(res) => *dist = res,
