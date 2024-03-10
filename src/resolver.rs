@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::fmt::{Display, self};
-use crate::expr::{Expr};
+use crate::expr::{Expr, Func};
 
 use crate::statement::Stmt;
 
@@ -109,8 +109,11 @@ impl Resolver {
                 }
                 self.pop_scope();
             }
-            Stmt::Class(id, _) => {
+            Stmt::Class(id, funs) => {
                 self.declare(id.clone());
+                for fun in funs.iter_mut() {
+                    self.resolve_stmt(fun, errs);
+                }
                 self.define(id.clone());
             }
         }

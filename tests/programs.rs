@@ -205,3 +205,23 @@ print after - before;
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(55.0)));
 }
+
+#[test]
+fn simple_class() {
+    let mut interp = Interpreter::new();
+    interp.run("
+var result;
+class Book {
+    name() {
+        result = \"Crafting Interpreters\";
+    }
+}
+
+var resultBefore = result;
+var book = Book();
+book.name();
+").unwrap();
+
+    assert_eq!(interp.get_global("resultBefore"), Some(Val::Nil));
+    assert_eq!(interp.get_global("result"), Some(Val::String("Crafting Interpreters".into())));
+}
