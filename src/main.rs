@@ -39,15 +39,12 @@ fn run_prompt() {
             stdout().flush().unwrap();
         }
         let mut line = String::new();
-        let mut len = input.read_line(&mut line).unwrap();
-        while len > 1 {
-            len = input.read_line(&mut line).unwrap();
-        };
-        if let Err(err) = interpreter.run(&line) {
-            println!("error: {}", err);
-        }
+        let len = input.read_line(&mut line).unwrap();
         if len == 0 {
             break;
+        }
+        if let Err(err) = interpreter.run(&line) {
+            println!("error: {}", err);
         }
     }
 }
