@@ -17,13 +17,13 @@ impl NativeCall {
         }
     }
 
-    pub fn call(&self, vals: &[Val]) -> Result<Val, EvalError> {
+    pub fn call(&self, vals: &[Val]) -> Result<Val, EvalErr> {
         if self.arity() == vals.len() {
             match self {
                 Self::Clock => Ok(Self::clock())
             }
         } else {
-            Err(EvalError::WrongArgumentCount(self.arity(), vals.len()))
+            Err(EvalErr::WrongArgumentCount(self.arity(), vals.len()))
         }
     }
 
@@ -80,7 +80,7 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn eval(&self, scope: ScopeLink) -> Result<Val, EvalError> {
+    pub fn eval(&self, scope: ScopeLink) -> Result<Val, EvalErr> {
         match self {
             Self::Literal(v) => Ok(v.clone()),
             Self::Binary(op, x, y) => {
@@ -127,7 +127,7 @@ impl Expr {
                     (TokenType::EqualEqual, x, y) => Ok(Val::Bool(x == y)),
                     (TokenType::BangEqual, x, y) => Ok(Val::Bool(x != y)),
 
-                    _ => Err(EvalError::TypeError),
+                    _ => Err(EvalErr::TypeError),
                 }
             }
             Self::Unary(op, x) => {
@@ -135,7 +135,7 @@ impl Expr {
                 match (op, l) {
                     (TokenType::Bang, Val::Bool(a)) => Ok(Val::Bool(!a)),
                     (TokenType::Minus, Val::Num(a)) => Ok(Val::Num(-a)),
-                    _ => Err(EvalError::TypeError),
+                    _ => Err(EvalErr::TypeError),
                 }
             }
             Self::Variable(id, dist) => Ok((*scope)
@@ -152,7 +152,7 @@ impl Expr {
                 match fun {
                     Val::LoxFunc(expected_args, fun, closure) => {
                         if args.len() != expected_args.len() {
-                            return Err(EvalError::WrongArgumentCount(expected_args.len(), args.len()))
+                            return Err(EvalErr::WrongArgumentCount(expected_args.len(), args.len()))
                         }
                         let child = Rc::new(RefCell::new(Scope::new_child(closure.clone())));
                         let mut bor = (*child).borrow_mut();
@@ -180,7 +180,7 @@ impl Expr {
                         }
                         nc.call(&evaluated)
                     }
-                    _ => Err(EvalError::TypeError)
+                    _ => Err(EvalErr::TypeError)
                 }
             }
               // _ => Err(EvalError::TypeError)
@@ -189,14 +189,14 @@ impl Expr {
 }
 
 #[derive(Debug)]
-pub enum EvalError {
+pub enum EvalErr {
     TypeError,
     UndefinedVariable,
     WrongArgumentCount(usize, usize),
     UnexpectedReturn
 }
 
-impl Display for EvalError {
+impl Display for EvalErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::TypeError => write!(f, "Type error."),
@@ -207,7 +207,7 @@ impl Display for EvalError {
     }
 }
 
-impl From<ExecInterruption> for EvalError {
+impl From<ExecInterruption> for EvalErr {
     fn from(value: ExecInterruption) -> Self {
         match value {
             ExecInterruption::Err(e) => e,

@@ -1,6 +1,6 @@
 use crate::resolver::{Resolver, ResolverErr};
 use crate::scanner::scan;
-use crate::expr::{EvalError, NativeCall, Val};
+use crate::expr::{EvalErr, NativeCall, Val};
 use crate::parser::{ParseErr, Parser};
 use crate::scope::{Scope, ScopeLink};
 use crate::statement::Stmt;
@@ -18,16 +18,16 @@ impl Default for Interpreter {
 
 #[derive(Debug)]
 pub enum InterpretErr {
-    ParseError(ParseErr),
+    ParseErr(ParseErr),
     ResolverErrs(Vec<ResolverErr>),
-    EvalErr(EvalError),
+    EvalErr(EvalErr),
 }
 
 impl fmt::Display for InterpretErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EvalErr(x)  => write!(f, "{x}"),
-            Self::ParseError(x) => write!(f, "{x}"),
+            Self::ParseErr(x) => write!(f, "{x}"),
             Self::ResolverErrs(x) => {
                 for err in x.iter() {
                     write!(f, "{err}")?;
@@ -42,7 +42,7 @@ impl fmt::Display for InterpretErr {
 
 impl From<ParseErr> for InterpretErr {
     fn from(val: ParseErr) -> Self {
-        InterpretErr::ParseError(val)
+        InterpretErr::ParseErr(val)
     }
 }
 
@@ -52,8 +52,8 @@ impl From<Vec<ResolverErr>> for InterpretErr {
     }
 }
 
-impl From<EvalError> for InterpretErr {
-    fn from(val: EvalError) -> Self {
+impl From<EvalErr> for InterpretErr {
+    fn from(val: EvalErr) -> Self {
         InterpretErr::EvalErr(val)
     }
 }
@@ -73,7 +73,7 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret(&mut self, program: &[Stmt]) -> Result<(), EvalError> {
+    pub fn interpret(&mut self, program: &[Stmt]) -> Result<(), EvalErr> {
         for stmt in program.iter() {
             stmt.exec(self.global_scope.clone())?;
         }

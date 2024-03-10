@@ -1,4 +1,4 @@
-use crate::expr::{EvalError, ExprRef, Val};
+use crate::expr::{EvalErr, ExprRef, Val};
 use crate::scope::{Scope, ScopeLink};
 use std::{cell::RefCell, rc::Rc};
 
@@ -16,11 +16,11 @@ pub enum Stmt {
 
 pub enum ExecInterruption {
     Return(Option<Val>),
-    Err(EvalError),
+    Err(EvalErr),
 }
 
-impl From<EvalError> for ExecInterruption {
-    fn from(value: EvalError) -> Self {
+impl From<EvalErr> for ExecInterruption {
+    fn from(value: EvalErr) -> Self {
         ExecInterruption::Err(value)
     }
 }
