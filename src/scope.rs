@@ -20,7 +20,7 @@ impl Scope {
                 .expect("Reference to undefined value should have been caught in resolution");
         }
 
-        let mut cur = self.parent.clone().expect(&format!("Resolver gave invalid depth {dist}"));
+        let mut cur = self.parent.clone().unwrap_or_else(|| panic!("Resolver gave invalid depth {dist}"));
 
         for _ in 0..dist - 1 {
             let borrow = (*cur).borrow();
@@ -41,7 +41,7 @@ impl Scope {
             return;
         }
 
-        let mut cur = self.parent.clone().expect(&format!("Resolver gave invalid depth {dist}"));
+        let mut cur = self.parent.clone().unwrap_or_else(|| panic!("Resolver gave invalid depth {dist}"));
         for _ in 0..dist-1 {
             let borrow = (*cur).borrow();
             let next = borrow.parent.clone().expect("Resolver gave invalid depth, I've reached the bottom of the stack");

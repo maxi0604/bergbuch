@@ -338,9 +338,9 @@ impl<'a> Parser<'a> {
         let expr = self.logic_or()?;
         if self.match_next_lits([TokenType::Equal]) {
             let val = self.logic_or();
-            if let Expr::Variable(tok, _) = (&*expr).clone() {
+            if let Expr::Variable(tok, _) = (*expr).clone() {
                 Ok(Box::new(Expr::Assignment(tok.clone(), 0, val?)))
-            } else if let Expr::Get(target, id) = (&*expr).clone() {
+            } else if let Expr::Get(target, id) = (*expr).clone() {
                 Ok(Box::new(Expr::Set(target, id, val?)))
             } else {
                 Err(ParseErr::new(ParseErrType::NotLvalue, None))

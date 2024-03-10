@@ -41,6 +41,12 @@ pub struct Resolver {
     stack: Vec<ResolverScope>
 }
 
+impl Default for Resolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Resolver {
     pub fn new() -> Self {
         // Just the global scope is present.
@@ -55,7 +61,7 @@ impl Resolver {
             self.resolve_stmt(stmt, &mut result);
         }
 
-        if result.len() > 0 {
+        if !result.is_empty() {
             Err(result)
         } else {
             Ok(())
