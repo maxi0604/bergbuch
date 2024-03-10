@@ -238,3 +238,19 @@ for (var i = 0; i < 10; i = i + 1)
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(45.0)));
 }
+
+
+#[test]
+fn for_with_only_cond() {
+    let mut interp = Interpreter::new();
+    interp.run("
+var result = 0;
+var i = 0;
+for (; i < 10;) {
+    result = result + i;
+    i = i + 1;
+}
+").unwrap();
+
+    assert_eq!(interp.get_global("result"), Some(Val::Num(45.0)));
+}
