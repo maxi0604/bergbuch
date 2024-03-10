@@ -65,12 +65,8 @@ impl Interpreter {
         let mut parsed = parser.parse()?;
         let mut resolver = Resolver::new();
         resolver.resolve(&mut parsed)?;
-        if let Err(err) = self.interpret(&parsed) {
-            println!("{}", err);
-            Err(err.into())
-        } else {
-            Ok(())
-        }
+        self.interpret(&parsed)?;
+        Ok(())
     }
 
     pub fn interpret(&mut self, program: &[Stmt]) -> Result<(), EvalErr> {

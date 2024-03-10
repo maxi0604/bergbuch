@@ -109,6 +109,7 @@ impl Expr {
 
                     // The book only allow concatenating two strings or adding numbers.
                     // I allow stringifying values here.
+                    #[cfg(not(feature = "compliant"))]
                     (TokenType::Plus, Val::String(a), b) => {
                         let mut c = a.to_string();
                         // Writing to string can't fail.
@@ -116,6 +117,7 @@ impl Expr {
                         Ok(Val::String(c.into()))
                     }
 
+                    #[cfg(not(feature = "compliant"))]
                     (TokenType::Plus, a, Val::String(b)) => {
                         let mut c = String::new();
                         // Writing to string can't fail.
