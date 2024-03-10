@@ -19,7 +19,7 @@ impl Default for Interpreter {
 #[derive(Debug)]
 pub enum InterpretErr {
     ParseError(ParseErr),
-    ResolverErr(ResolverErr),
+    ResolverErrs(Vec<ResolverErr>),
     EvalErr(EvalError),
 }
 
@@ -28,7 +28,12 @@ impl fmt::Display for InterpretErr {
         match self {
             Self::EvalErr(x)  => write!(f, "{x}"),
             Self::ParseError(x) => write!(f, "{x}"),
-            Self::ResolverErr(x) => write!(f, "{x}"),
+            Self::ResolverErrs(x) => {
+                for err in x.iter() {
+                    write!(f, "{err}")?;
+                }
+                Ok(())
+            }
         }
 
     }
@@ -41,9 +46,9 @@ impl From<ParseErr> for InterpretErr {
     }
 }
 
-impl From<ResolverErr> for InterpretErr {
-    fn from(val: ResolverErr) -> Self {
-        InterpretErr::ResolverErr(val)
+impl From<Vec<ResolverErr>> for InterpretErr {
+    fn from(val: Vec<ResolverErr>) -> Self {
+        InterpretErr::ResolverErrs(val)
     }
 }
 

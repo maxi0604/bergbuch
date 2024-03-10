@@ -12,14 +12,17 @@ struct ResolverScope {
 
 #[derive(Debug, Clone)]
 pub enum ResolverErr {
+    UseWhileDeclaring,
     UndeclaredVar,
     UndefinedVar,
     RedeclarationInSameScope
 }
 
+type ErrList = Vec<ResolverErr>;
 impl Display for ResolverErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UseWhileDeclaring => write!(f, "Using variable in its declaration."),
             Self::UndeclaredVar => write!(f, "Undeclared variable."),
             Self::UndefinedVar => write!(f, "Type error."),
             Self::RedeclarationInSameScope => write!(f, "Cannot redeclare variable in same scope."),
@@ -43,30 +46,38 @@ impl Resolver {
         // Just the global scope is present.
         Self { stack: vec![ResolverScope::new()] }
     }
-    pub fn resolve(&mut self, program: &mut [Stmt]) {
+    pub fn resolve(&mut self, program: &mut [Stmt]) -> Result<(), Vec<ResolverErr>> {
+        let mut result = vec![];
+
         for stmt in program {
-            self.resolve_stmt(stmt);
+            self.resolve_stmt(stmt, &mut result);
+        }
+
+        if result.len() > 0 {
+            Err(result)
+        } else {
+            Ok(())
         }
     }
 
-    fn resolve_stmt(&mut self, stmt: &mut Stmt) {
+    fn resolve_stmt(&mut self, stmt: &mut Stmt, errs: &mut ErrList) {
         match stmt {
             Stmt::If(cond, if_stmt, else_stmt) => {
-                self.resolve_expr(cond);
-                self.resolve_stmt(if_stmt);
+                self.resolve_expr(cond, errs);
+                self.resolve_stmt(if_stmt, errs);
                 if let Some(else_stmt) = else_stmt {
-                    self.resolve_stmt(else_stmt);
+                    self.resolve_stmt(else_stmt, errs);
                 }
             }
             Stmt::While(cond, body) => {
-                self.resolve_expr(cond);
-                self.resolve_stmt(body);
+                self.resolve_expr(cond, errs);
+                self.resolve_stmt(body, errs);
             }
-            Stmt::Expr(expr) | Stmt::Print(expr) | Stmt::Return(Some(expr)) => self.resolve_expr(expr),
+            Stmt::Expr(expr) | Stmt::Print(expr) | Stmt::Return(Some(expr)) => self.resolve_expr(expr, errs),
             Stmt::Block(stmts) => {
                 self.push_scope();
                 for inner in stmts.iter_mut() {
-                    self.resolve_stmt(inner);
+                    self.resolve_stmt(inner, errs);
                 }
                 self.pop_scope();
             }
@@ -74,7 +85,7 @@ impl Resolver {
             Stmt::Declare(id, val) => {
                 self.declare(id.clone());
                 if let Some(val) = val {
-                    self.resolve_expr(val);
+                    self.resolve_expr(val, errs);
                 }
                 self.define(id.clone());
             }
@@ -92,36 +103,43 @@ impl Resolver {
                 }
 
                 for inner in body.iter_mut() {
-                    self.resolve_stmt(inner);
+                    self.resolve_stmt(inner, errs);
                 }
                 self.pop_scope();
             }
         }
     }
 
-    fn resolve_expr(&mut self, expr: &mut Expr) {
+    fn resolve_expr(&mut self, expr: &mut Expr, errs: &mut ErrList) {
         match expr {
             Expr::Call(fun, args) => {
-                self.resolve_expr(fun);
+                self.resolve_expr(fun, errs);
                 for arg in args.iter_mut() {
-                    self.resolve_expr(arg);
+                    self.resolve_expr(arg, errs);
                 }
             }
-            Expr::Unary(_, r) => self.resolve_expr(r),
+            Expr::Unary(_, r) => self.resolve_expr(r, errs),
             Expr::Binary(_, l, r) => {
-                self.resolve_expr(l);
-                self.resolve_expr(r);
+                self.resolve_expr(l, errs);
+                self.resolve_expr(r, errs);
             }
             Expr::Literal(_) => {},
             Expr::Assignment(id, dist, val) => {
-                self.resolve_expr(val);
-                *dist = self.resolve_id(id).expect("Undefined var");
+                self.resolve_expr(val, errs);
+                match self.resolve_id(id) {
+                    Ok(res) => *dist = res,
+                    Err(err) => errs.push(err),
+                }
             }
             Expr::Variable(id, dist) => {
                 if self.currently_declaring(id) {
-                    println!("Can't use var in declaration");
+                    errs.push(ResolverErr::UseWhileDeclaring);
+                } else {
+                    match self.resolve_id(id) {
+                        Ok(res) => *dist = res,
+                        Err(err) => errs.push(err),
+                    }
                 }
-                *dist = self.resolve_id(id).expect("Undefined var");
             }
 
         }
