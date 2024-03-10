@@ -16,7 +16,7 @@ volume = 0;
   var volume = 3 * 4 * 5;
   print volume;
 }
-");
+").unwrap();
 
     assert_eq!(interp.get_global("volume"), Some(Val::Num(0.0)));
 }
@@ -46,7 +46,7 @@ if (true or false) {
 } else {
     result = \"bar\";
 }
-");
+").unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::String("foo".into())));
 }
@@ -62,7 +62,7 @@ if (true and false) {
 } else {
     result = \"bar\";
 }
-");
+").unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::String("bar".into())));
 }
@@ -79,7 +79,7 @@ if (true and false) {
 } else {
     result = \"bar\";
 }
-");
+").unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::String("far".into())));
 }
@@ -91,7 +91,7 @@ fn comment() {
 var result;
 // result = 42;
 result = 6;
-");
+").unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(6.0)));
 }
@@ -109,7 +109,7 @@ fun foo(bar) {
 }
 
 var result = foo(1);
-");
+").unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
 }
@@ -123,7 +123,7 @@ var a = 0;
 while (a < 10) {
 a = a + 1;
 }
-");
+").unwrap();
 
     assert_eq!(interp.get_global("a"), Some(Val::Num(10.0)));
 }
@@ -140,7 +140,7 @@ fun returnsFun() {
 }
 
 var result = returnsFun()(1);
-");
+").unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
 }
@@ -159,7 +159,7 @@ fun returnsFun() {
 }
 
 var result = returnsFun()(1);
-");
+").unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
 }
@@ -180,7 +180,7 @@ var a = \"global\";
   var a = \"block\";
   result2 = showA();
 }
-");
+").unwrap();
 
     assert_eq!(interp.get_global("result1"), Some(Val::String("global".into())));
     assert_eq!(interp.get_global("result2"), Some(Val::String("global".into())));
