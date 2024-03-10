@@ -20,7 +20,7 @@ fn scopes_separated() {
     ").unwrap_err();
 
     match err {
-        InterpretErr::ResolverErrs(x) => assert!(x.iter().all(|ev| matches!(ev, ResolverErr::UndeclaredVar))),
+        InterpretErr::ResolverErrs(x) => assert!(x.iter().all(|ev| matches!(ev, ResolverErr::UndeclaredVar(_)))),
         x => panic!("{x:?} should not be reported here.")
     }
 }

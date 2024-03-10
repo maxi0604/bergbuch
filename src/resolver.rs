@@ -13,7 +13,7 @@ struct ResolverScope {
 #[derive(Debug, Clone)]
 pub enum ResolverErr {
     UseWhileDeclaring,
-    UndeclaredVar,
+    UndeclaredVar(Rc<str>),
     UndefinedVar,
     RedeclarationInSameScope
 }
@@ -23,7 +23,7 @@ impl Display for ResolverErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UseWhileDeclaring => write!(f, "Using variable in its declaration."),
-            Self::UndeclaredVar => write!(f, "Undeclared variable."),
+            Self::UndeclaredVar(id) => write!(f, "Undeclared variable `{id}`"),
             Self::UndefinedVar => write!(f, "Type error."),
             Self::RedeclarationInSameScope => write!(f, "Cannot redeclare variable in same scope."),
         }
@@ -44,7 +44,9 @@ pub struct Resolver {
 impl Resolver {
     pub fn new() -> Self {
         // Just the global scope is present.
-        Self { stack: vec![ResolverScope::new()] }
+        let mut result = Self { stack: vec![Default::default()] };
+        result.define("clock".into());
+        result
     }
     pub fn resolve(&mut self, program: &mut [Stmt]) -> Result<(), Vec<ResolverErr>> {
         let mut result = vec![];
@@ -154,7 +156,7 @@ impl Resolver {
             }
         }
 
-        Err(ResolverErr::UndeclaredVar)
+        Err(ResolverErr::UndeclaredVar(id.into()))
     }
 
     fn push_scope(&mut self) {
@@ -172,6 +174,7 @@ impl Resolver {
     fn define(&mut self, id: Rc<str>) {
         self.stack.last_mut().expect("Popped global scope").vars.insert(id, true);
     }
+
     fn currently_declaring(&mut self, id: &str) -> bool {
         !self.stack.last_mut().expect("Popped global scope").vars.get(id).unwrap_or(&true)
     }

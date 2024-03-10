@@ -186,3 +186,22 @@ var a = \"global\";
     assert_eq!(interp.get_global("result1"), Some(Val::String("global".into())));
     assert_eq!(interp.get_global("result2"), Some(Val::String("global".into())));
 }
+
+
+#[test]
+fn fib() {
+    let mut interp = Interpreter::new();
+    interp.run("
+fun fib(n) {
+  if (n < 2) return n;
+  return fib(n - 1) + fib(n - 2);
+}
+
+var before = clock();
+var result = fib(10);
+var after = clock();
+print after - before;
+").unwrap();
+
+    assert_eq!(interp.get_global("result"), Some(Val::Num(55.0)));
+}
