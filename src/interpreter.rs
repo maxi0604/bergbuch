@@ -8,6 +8,7 @@ use std::{cell::RefCell, rc::Rc, fmt};
 
 pub struct Interpreter {
     global_scope: ScopeLink,
+    resolver: Resolver,
 }
 
 impl Default for Interpreter {
@@ -63,8 +64,7 @@ impl Interpreter {
         let (scanned, _err) = scan(code);
         let mut parser = Parser::new(&scanned);
         let mut parsed = parser.parse()?;
-        let mut resolver = Resolver::new();
-        resolver.resolve(&mut parsed)?;
+        self.resolver.resolve(&mut parsed)?;
         self.interpret(&parsed)?;
         Ok(())
     }
@@ -81,6 +81,7 @@ impl Interpreter {
         global_scope.declare("clock".into(), Val::NativeFunc(NativeCall::Clock));
         Interpreter {
             global_scope: Rc::new(RefCell::new(global_scope)),
+            resolver: Resolver::new()
         }
     }
 
