@@ -31,19 +31,23 @@ fn run_file(path: &Path) {
 }
 
 fn run_prompt() {
+    let input = stdin();
     let mut interpreter = Interpreter::new();
-    if stdin().is_terminal() {
-        print!("> ");
-        stdout().flush().unwrap();
-    }
-
-    for line in stdin().lines() {
-        if let Err(err) = interpreter.run(&line.expect("Error reading stdin")) {
-            println!("error: {}", err);
-        }
-        if stdin().is_terminal() {
+    loop {
+        if input.is_terminal() {
             print!("> ");
             stdout().flush().unwrap();
+        }
+        let mut line = String::new();
+        let mut len = input.read_line(&mut line).unwrap();
+        while len > 1 {
+            len = input.read_line(&mut line).unwrap();
+        };
+        if let Err(err) = interpreter.run(&line) {
+            println!("error: {}", err);
+        }
+        if len == 0 {
+            break;
         }
     }
 }
