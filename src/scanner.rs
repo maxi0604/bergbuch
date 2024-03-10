@@ -18,13 +18,7 @@ impl<'a> Scanner<'a> {
 
     // "match" is a keyword in the metalanguage already.
     fn match_next(&mut self, c: char) -> bool {
-        match self.str.get(self.index) {
-            Some(match_c) if *match_c == c => {
-                self.index += 1;
-                true
-            }
-            Some(_) | None => false,
-        }
+        self.str.get(self.index).is_some_and(|d| c == *d)
     }
 
     fn peek(&self) -> Option<char> {
