@@ -30,7 +30,7 @@ impl fmt::Display for InterpretErr {
             Self::ParseErr(x) => write!(f, "{x}"),
             Self::ResolverErrs(x) => {
                 for err in x.iter() {
-                    write!(f, "{err}")?;
+                    writeln!(f, "{err}")?;
                 }
                 Ok(())
             }
