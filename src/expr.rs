@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell, collections::HashMap, fmt::{self, Display, Write}, rc::Rc, thread::scope, time::{self, Duration}
+    cell::RefCell, collections::HashMap, fmt::{self, Display, Write}, rc::Rc, time::{self, Duration}
 };
 
 use crate::{scope::{ScopeLink, Scope}, statement::{ExecInterruption, Stmt}};

@@ -15,7 +15,7 @@ pub enum ParseErrType {
 
 #[derive(Debug, Clone)]
 pub struct ParseErr {
-    data: ParseErrType,
+    pub data: ParseErrType,
     source: Option<Token>,
 }
 

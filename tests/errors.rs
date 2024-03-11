@@ -1,3 +1,4 @@
+use bergbuch::parser::{ParseErr, ParseErrType};
 use bergbuch::resolver::ResolverErr;
 use bergbuch::interpreter::{InterpretErr, Interpreter};
 
@@ -40,3 +41,22 @@ var a = a;
     }
 }
 
+
+
+#[test]
+fn this_not_lvalue() {
+    let mut interp = Interpreter::new();
+    let err = interp.run("
+var result;
+class Book {
+    setName() {
+        this = \"Crafting Interpreters\";
+    }
+}
+");
+
+    match err {
+        Err(InterpretErr::ParseErr(x)) => assert!(matches!(x.data, ParseErrType::NotLvalue)),
+        x => panic!("{x:?} should not be reported here.")
+    }
+}
