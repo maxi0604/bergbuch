@@ -1,6 +1,7 @@
 use crate::expr::{Class, EvalErr, ExprRef, Func, Val};
 use crate::scope::{Scope, ScopeLink};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+use fxhash::FxHashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
@@ -74,7 +75,7 @@ impl Stmt {
                 )),
             ),
             Self::Class(id, funs) => {
-                let mut funcs = HashMap::new();
+                let mut funcs = FxHashMap::default();
                 for fun in funs.iter() {
                     let Self::Fun(id, args, body) = fun else {
                         panic!("Classes must only contain functions. Did the parser mess up?");

@@ -1,6 +1,5 @@
 use std::{
     cell::RefCell,
-    collections::HashMap,
     fmt::{self, Display, Write},
     rc::Rc,
     time::{self, Duration},
@@ -12,6 +11,7 @@ use crate::{
     statement::{ExecInterruption, Stmt},
 };
 
+use fxhash::FxHashMap;
 #[derive(Debug, PartialEq, Clone)]
 pub enum NativeCall {
     Clock,
@@ -47,7 +47,7 @@ impl NativeCall {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Func(pub Rc<[Rc<str>]>, pub Rc<[Stmt]>, pub ScopeLink);
 #[derive(Debug, PartialEq, Clone)]
-pub struct Class(pub HashMap<Rc<str>, Func>);
+pub struct Class(pub FxHashMap<Rc<str>, Func>);
 #[derive(Debug, PartialEq, Clone)]
 pub enum Val {
     String(Rc<str>),
@@ -55,7 +55,7 @@ pub enum Val {
     Bool(bool),
     LoxFunc(Func),
     LoxClass(Rc<Class>),
-    LoxInstance(Rc<Class>, Rc<RefCell<HashMap<Rc<str>, Val>>>),
+    LoxInstance(Rc<Class>, Rc<RefCell<FxHashMap<Rc<str>, Val>>>),
     NativeFunc(NativeCall),
     Nil,
 }
@@ -208,7 +208,7 @@ impl Expr {
                     }
                     Val::LoxClass(class) => Ok(Val::LoxInstance(
                         class.clone(),
-                        RefCell::new(HashMap::new()).into(),
+                        RefCell::new(FxHashMap::default()).into(),
                     )),
                     _ => Err(EvalErr::TypeError),
                 }

@@ -1,13 +1,13 @@
 use crate::expr::Expr;
-use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::rc::Rc;
+use fxhash::FxHashMap;
 
 use crate::statement::Stmt;
 
 #[derive(Default)]
 struct ResolverScope {
-    vars: HashMap<Rc<str>, bool>,
+    vars: FxHashMap<Rc<str>, bool>,
 }
 
 #[derive(Debug, Clone)]

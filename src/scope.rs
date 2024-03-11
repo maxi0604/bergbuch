@@ -1,10 +1,11 @@
 use crate::expr::Val;
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+use fxhash::FxHashMap;
 
 pub type ScopeLink = Rc<RefCell<Scope>>;
 #[derive(Debug, PartialEq, Default)]
 pub struct Scope {
-    stack: HashMap<Rc<str>, Val>,
+    stack: FxHashMap<Rc<str>, Val>,
     parent: Option<ScopeLink>,
 }
 
