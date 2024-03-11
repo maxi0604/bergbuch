@@ -1,7 +1,7 @@
 use crate::expr::Expr;
 use std::fmt::{self, Display};
 use std::rc::Rc;
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 
 use crate::statement::Stmt;
 

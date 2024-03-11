@@ -11,7 +11,7 @@ use crate::{
     statement::{ExecInterruption, Stmt},
 };
 
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 #[derive(Debug, PartialEq, Clone)]
 pub enum NativeCall {
     Clock,

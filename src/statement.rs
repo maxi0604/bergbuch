@@ -1,7 +1,7 @@
 use crate::expr::{Class, EvalErr, ExprRef, Func, Val};
 use crate::scope::{Scope, ScopeLink};
 use std::{cell::RefCell, rc::Rc};
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {

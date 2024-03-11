@@ -1,6 +1,6 @@
 use crate::expr::Val;
 use std::{cell::RefCell, rc::Rc};
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 
 pub type ScopeLink = Rc<RefCell<Scope>>;
 #[derive(Debug, PartialEq, Default)]
