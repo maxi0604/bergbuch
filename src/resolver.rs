@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::fmt::{Display, self};
-use crate::expr::{Expr};
+use crate::expr::{Class, Expr};
 
 use crate::statement::Stmt;
 
@@ -16,6 +16,13 @@ pub enum ResolverErr {
     UndeclaredVar(Rc<str>),
     UndefinedVar,
     RedeclarationInSameScope
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassType {
+    None,
+    Class,
+    Subclass
 }
 
 type ErrList = Vec<ResolverErr>;
@@ -58,7 +65,7 @@ impl Resolver {
         let mut result = vec![];
 
         for stmt in program {
-            self.resolve_stmt(stmt, &mut result);
+            self.resolve_stmt(stmt, &mut result, ClassType::None);
         }
 
         if !result.is_empty() {
@@ -68,24 +75,24 @@ impl Resolver {
         }
     }
 
-    fn resolve_stmt(&mut self, stmt: &mut Stmt, errs: &mut ErrList) {
+    fn resolve_stmt(&mut self, stmt: &mut Stmt, errs: &mut ErrList, in_class: ClassType) {
         match stmt {
             Stmt::If(cond, if_stmt, else_stmt) => {
                 self.resolve_expr(cond, errs);
-                self.resolve_stmt(if_stmt, errs);
+                self.resolve_stmt(if_stmt, errs, in_class);
                 if let Some(else_stmt) = else_stmt {
-                    self.resolve_stmt(else_stmt, errs);
+                    self.resolve_stmt(else_stmt, errs, in_class);
                 }
             }
             Stmt::While(cond, body) => {
                 self.resolve_expr(cond, errs);
-                self.resolve_stmt(body, errs);
+                self.resolve_stmt(body, errs, in_class);
             }
             Stmt::Expr(expr) | Stmt::Print(expr) | Stmt::Return(Some(expr)) => self.resolve_expr(expr, errs),
             Stmt::Block(stmts) => {
                 self.push_scope();
                 for inner in stmts.iter_mut() {
-                    self.resolve_stmt(inner, errs);
+                    self.resolve_stmt(inner, errs, in_class);
                 }
                 self.pop_scope();
             }
@@ -111,15 +118,19 @@ impl Resolver {
                 }
 
                 for inner in body.iter_mut() {
-                    self.resolve_stmt(inner, errs);
+                    self.resolve_stmt(inner, errs, in_class);
                 }
                 self.pop_scope();
             }
             Stmt::Class(id, funs) => {
                 self.declare(id.clone());
+                self.push_scope();
+                self.declare("this".into());
+                self.define("this".into());
                 for fun in funs.iter_mut() {
-                    self.resolve_stmt(fun, errs);
+                    self.resolve_stmt(fun, errs, ClassType::Class);
                 }
+                self.pop_scope();
                 self.define(id.clone());
             }
         }
@@ -161,7 +172,12 @@ impl Resolver {
                 self.resolve_expr(target, errs);
                 self.resolve_expr(val, errs);
             }
-
+            Expr::This(dist) => {
+                match self.resolve_id("this") {
+                    Ok(res) => *dist = res,
+                    Err(err) => errs.push(err),
+                }
+            }
         }
     }
 

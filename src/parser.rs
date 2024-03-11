@@ -492,6 +492,7 @@ impl<'a> Parser<'a> {
                 expr
             }
             TokenType::Identifier(x) => Expr::Variable(x.clone(), 0),
+            TokenType::This => Expr::This(0),
             // TODO: Error reporting, synchronize()
             _ => {
                 return Err(ParseErr::new(

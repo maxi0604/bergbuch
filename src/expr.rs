@@ -1,5 +1,5 @@
 use std::{
-    fmt::{self, Display, Write}, rc::Rc, cell::RefCell, time::{self, Duration}, collections::HashMap
+    cell::RefCell, collections::HashMap, fmt::{self, Display, Write}, rc::Rc, thread::scope, time::{self, Duration}
 };
 
 use crate::{scope::{ScopeLink, Scope}, statement::{ExecInterruption, Stmt}};
@@ -87,6 +87,7 @@ pub enum Expr {
     Call(ExprRef, Vec<ExprRef>),
     Get(ExprRef, Rc<str>),
     Set(ExprRef, Rc<str>, ExprRef),
+    This(usize),
 }
 
 impl Expr {
@@ -200,11 +201,22 @@ impl Expr {
             }
             Self::Get(target, id) => {
                 let target = target.eval(scope.clone())?;
-                let Val::LoxInstance(class, values) = target else {
+                let Val::LoxInstance(ref class, ref values) = target else {
                     return Err(EvalErr::TypeError);
                 };
                 let borrow = (*values).borrow();
-                borrow.get(id).or(class.0.get(id).map(|x| Val::LoxFunc(x.clone())).as_ref()).ok_or(EvalErr::UndefinedVariable).cloned()
+                if let Some(val) = borrow.get(id) {
+                    Ok(val.clone())
+                } else if let Some(class_func) = class.0.get(id) {
+                    let mut ret = class_func.clone();
+                    let mut this_scope = Scope::new_child(scope.clone());
+                    this_scope.declare("this".into(), target.clone());
+                    ret.2 = Rc::new(RefCell::new(this_scope));
+                    Ok(Val::LoxFunc(ret))
+
+                } else {
+                    Err(EvalErr::UndefinedVariable)
+                }
             }
             Self::Set(target, id, val) => {
                 let Val::LoxInstance(_, vals) = target.eval(scope.clone())? else {
@@ -214,6 +226,9 @@ impl Expr {
                 let val = val.eval(scope.clone())?;
                 borrow.insert(id.clone(), val.clone());
                 Ok(val)
+            }
+            Self::This(depth) => {
+                Ok((*scope).borrow().get("this".into(), *depth))
             }
         }
     }

@@ -254,3 +254,25 @@ for (; i < 10;) {
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(45.0)));
 }
+
+
+#[test]
+fn this_reference() {
+    let mut interp = Interpreter::new();
+    interp.run("
+var result;
+class Book {
+    setName() {
+        this.name = \"Crafting Interpreters\";
+    }
+}
+
+var resultBefore = result;
+var book = Book();
+book.setName();
+result = book.name;
+").unwrap();
+
+    assert_eq!(interp.get_global("resultBefore"), Some(Val::Nil));
+    assert_eq!(interp.get_global("result"), Some(Val::String("Crafting Interpreters".into())));
+}
