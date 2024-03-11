@@ -1,4 +1,4 @@
-use crate::expr::{Val};
+use crate::expr::Val;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 pub type ScopeLink = Rc<RefCell<Scope>>;
@@ -16,22 +16,34 @@ impl Scope {
         // self is of type &Scope, the rest of the elements
         // of the chain are of type ScopeLink. Do one resolution before the loop.
         if dist == 0 {
-            return self.stack.get(id).cloned()
+            return self
+                .stack
+                .get(id)
+                .cloned()
                 .expect("Reference to undefined value should have been caught in resolution");
         }
 
-        let mut cur = self.parent.clone().unwrap_or_else(|| panic!("Resolver gave invalid depth {dist}"));
+        let mut cur = self
+            .parent
+            .clone()
+            .unwrap_or_else(|| panic!("Resolver gave invalid depth {dist}"));
 
         for _ in 0..dist - 1 {
             let borrow = (*cur).borrow();
-            let next = borrow.parent.clone().expect("Resolver gave invalid depth, I've reached the bottom of the stack");
+            let next = borrow
+                .parent
+                .clone()
+                .expect("Resolver gave invalid depth, I've reached the bottom of the stack");
             drop(borrow);
             cur = next;
         }
 
         let borrow = (*cur).borrow();
-        borrow.stack.get(id).cloned()
-                .expect("Reference to undefined value should have been caught in resolution")
+        borrow
+            .stack
+            .get(id)
+            .cloned()
+            .expect("Reference to undefined value should have been caught in resolution")
     }
 
     #[allow(clippy::map_entry)]
@@ -41,10 +53,16 @@ impl Scope {
             return;
         }
 
-        let mut cur = self.parent.clone().unwrap_or_else(|| panic!("Resolver gave invalid depth {dist}"));
-        for _ in 0..dist-1 {
+        let mut cur = self
+            .parent
+            .clone()
+            .unwrap_or_else(|| panic!("Resolver gave invalid depth {dist}"));
+        for _ in 0..dist - 1 {
             let borrow = (*cur).borrow();
-            let next = borrow.parent.clone().expect("Resolver gave invalid depth, I've reached the bottom of the stack");
+            let next = borrow
+                .parent
+                .clone()
+                .expect("Resolver gave invalid depth, I've reached the bottom of the stack");
             drop(borrow);
             cur = next;
         }

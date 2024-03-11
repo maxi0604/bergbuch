@@ -1,10 +1,12 @@
-use bergbuch::interpreter::Interpreter;
 use bergbuch::expr::Val;
+use bergbuch::interpreter::Interpreter;
 
 #[test]
 fn volume() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 // How loud?
 var volume = 11;
 
@@ -16,7 +18,9 @@ volume = 0;
   var volume = 3 * 4 * 5;
   print volume;
 }
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("volume"), Some(Val::Num(0.0)));
 }
@@ -24,46 +28,59 @@ volume = 0;
 #[test]
 fn globals() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result;
 var global = \"outside\";
 {
   var local = \"inside\";
   result = global + local;
 }
-").unwrap();
+",
+        )
+        .unwrap();
 
-    assert_eq!(interp.get_global("result"), Some(Val::String("outsideinside".into())));
+    assert_eq!(
+        interp.get_global("result"),
+        Some(Val::String("outsideinside".into()))
+    );
 }
-
 
 #[test]
 fn if_else_true() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result;
 if (true or false) {
     result = \"foo\";
 } else {
     result = \"bar\";
 }
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::String("foo".into())));
 }
 
-
 #[test]
 fn if_else_false() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result;
 if (true and false) {
     result = \"foo\";
 } else {
     result = \"bar\";
 }
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::String("bar".into())));
 }
@@ -71,7 +88,9 @@ if (true and false) {
 #[test]
 fn if_elseif_else() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result;
 if (true and false) {
     result = \"foo\";
@@ -80,7 +99,9 @@ if (true and false) {
 } else {
     result = \"bar\";
 }
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::String("far".into())));
 }
@@ -88,11 +109,15 @@ if (true and false) {
 #[test]
 fn comment() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result;
 // result = 42;
 result = 6;
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(6.0)));
 }
@@ -100,7 +125,9 @@ result = 6;
 #[test]
 fn simple_function() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 fun foo(bar) {
     var a = 1;
     if (a > 1) {
@@ -110,28 +137,35 @@ fun foo(bar) {
 }
 
 var result = foo(1);
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
 }
 
-
 #[test]
 fn simple_while() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var a = 0;
 while (a < 10) {
 a = a + 1;
 }
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("a"), Some(Val::Num(10.0)));
 }
 #[test]
 fn return_local_function() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 fun returnsFun() {
     fun inner(foo) {
         return foo + 1;
@@ -141,7 +175,9 @@ fun returnsFun() {
 }
 
 var result = returnsFun()(1);
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
 }
@@ -149,7 +185,9 @@ var result = returnsFun()(1);
 #[test]
 fn closure() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 fun returnsFun() {
     var a = 1;
     fun inner(foo) {
@@ -160,7 +198,9 @@ fun returnsFun() {
 }
 
 var result = returnsFun()(1);
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(2.0)));
 }
@@ -168,7 +208,9 @@ var result = returnsFun()(1);
 #[test]
 fn leaky_closure() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result1;
 var result2;
 var a = \"global\";
@@ -181,17 +223,26 @@ var a = \"global\";
   var a = \"block\";
   result2 = showA();
 }
-").unwrap();
+",
+        )
+        .unwrap();
 
-    assert_eq!(interp.get_global("result1"), Some(Val::String("global".into())));
-    assert_eq!(interp.get_global("result2"), Some(Val::String("global".into())));
+    assert_eq!(
+        interp.get_global("result1"),
+        Some(Val::String("global".into()))
+    );
+    assert_eq!(
+        interp.get_global("result2"),
+        Some(Val::String("global".into()))
+    );
 }
-
 
 #[test]
 fn fib() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 fun fib(n) {
   if (n < 2) return n;
   return fib(n - 1) + fib(n - 2);
@@ -201,7 +252,9 @@ var before = clock();
 var result = fib(10);
 var after = clock();
 print after - before;
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(55.0)));
 }
@@ -209,7 +262,9 @@ print after - before;
 #[test]
 fn simple_class() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result;
 class Book {
     name() {
@@ -220,46 +275,58 @@ class Book {
 var resultBefore = result;
 var book = Book();
 book.name();
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("resultBefore"), Some(Val::Nil));
-    assert_eq!(interp.get_global("result"), Some(Val::String("Crafting Interpreters".into())));
+    assert_eq!(
+        interp.get_global("result"),
+        Some(Val::String("Crafting Interpreters".into()))
+    );
 }
-
 
 #[test]
 fn simple_for() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result = 0;
 for (var i = 0; i < 10; i = i + 1)
     result = result + i;
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(45.0)));
 }
 
-
 #[test]
 fn for_with_only_cond() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result = 0;
 var i = 0;
 for (; i < 10;) {
     result = result + i;
     i = i + 1;
 }
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("result"), Some(Val::Num(45.0)));
 }
 
-
 #[test]
 fn this_reference() {
     let mut interp = Interpreter::new();
-    interp.run("
+    interp
+        .run(
+            "
 var result;
 class Book {
     setName() {
@@ -271,8 +338,13 @@ var resultBefore = result;
 var book = Book();
 book.setName();
 result = book.name;
-").unwrap();
+",
+        )
+        .unwrap();
 
     assert_eq!(interp.get_global("resultBefore"), Some(Val::Nil));
-    assert_eq!(interp.get_global("result"), Some(Val::String("Crafting Interpreters".into())));
+    assert_eq!(
+        interp.get_global("result"),
+        Some(Val::String("Crafting Interpreters".into()))
+    );
 }

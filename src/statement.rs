@@ -1,6 +1,6 @@
 use crate::expr::{Class, EvalErr, ExprRef, Func, Val};
 use crate::scope::{Scope, ScopeLink};
-use std::{cell::RefCell, rc::Rc, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
@@ -65,9 +65,14 @@ impl Stmt {
             Self::Return(None) => {
                 return Err(ExecInterruption::Return(None));
             }
-            Self::Fun(id, args, func) => {
-                (*scope).borrow_mut().declare(id.clone(), Val::LoxFunc(Func(args.clone().into(), func.clone().into(), scope.clone())))
-            }
+            Self::Fun(id, args, func) => (*scope).borrow_mut().declare(
+                id.clone(),
+                Val::LoxFunc(Func(
+                    args.clone().into(),
+                    func.clone().into(),
+                    scope.clone(),
+                )),
+            ),
             Self::Class(id, funs) => {
                 let mut funcs = HashMap::new();
                 for fun in funs.iter() {
@@ -77,7 +82,9 @@ impl Stmt {
                     let func = Func(args.clone().into(), body.clone().into(), scope.clone());
                     funcs.insert(id.clone(), func);
                 }
-                (*scope).borrow_mut().declare(id.clone(), Val::LoxClass(Class(funcs).into()))
+                (*scope)
+                    .borrow_mut()
+                    .declare(id.clone(), Val::LoxClass(Class(funcs).into()))
             }
         }
         Ok(())

@@ -1,9 +1,16 @@
 use std::{
-    cell::RefCell, collections::HashMap, fmt::{self, Display, Write}, rc::Rc, time::{self, Duration}
+    cell::RefCell,
+    collections::HashMap,
+    fmt::{self, Display, Write},
+    rc::Rc,
+    time::{self, Duration},
 };
 
-use crate::{scope::{ScopeLink, Scope}, statement::{ExecInterruption, Stmt}};
 use crate::token::TokenType;
+use crate::{
+    scope::{Scope, ScopeLink},
+    statement::{ExecInterruption, Stmt},
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum NativeCall {
@@ -20,7 +27,7 @@ impl NativeCall {
     pub fn call(&self, vals: &[Val]) -> Result<Val, EvalErr> {
         if self.arity() == vals.len() {
             match self {
-                Self::Clock => Ok(Self::clock())
+                Self::Clock => Ok(Self::clock()),
             }
         } else {
             Err(EvalErr::WrongArgumentCount(self.arity(), vals.len()))
@@ -28,7 +35,12 @@ impl NativeCall {
     }
 
     fn clock() -> Val {
-        Val::Num(time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or(Duration::ZERO).as_secs_f64())
+        Val::Num(
+            time::SystemTime::now()
+                .duration_since(time::UNIX_EPOCH)
+                .unwrap_or(Duration::ZERO)
+                .as_secs_f64(),
+        )
     }
 }
 
@@ -151,9 +163,7 @@ impl Expr {
                     _ => Err(EvalErr::TypeError),
                 }
             }
-            Self::Variable(id, dist) => Ok((*scope)
-                .borrow()
-                .get(id, *dist)),
+            Self::Variable(id, dist) => Ok((*scope).borrow().get(id, *dist)),
             Self::Assignment(id, dist, val) => {
                 let r = val.eval(scope.clone())?;
                 (*scope).borrow_mut().set(id.clone(), *dist, r.clone());
@@ -165,7 +175,10 @@ impl Expr {
                 match fun {
                     Val::LoxFunc(Func(expected_args, fun, closure)) => {
                         if args.len() != expected_args.len() {
-                            return Err(EvalErr::WrongArgumentCount(expected_args.len(), args.len()))
+                            return Err(EvalErr::WrongArgumentCount(
+                                expected_args.len(),
+                                args.len(),
+                            ));
                         }
                         let child = Rc::new(RefCell::new(Scope::new_child(closure.clone())));
                         let mut bor = (*child).borrow_mut();
@@ -193,10 +206,11 @@ impl Expr {
                         }
                         nc.call(&evaluated)
                     }
-                    Val::LoxClass(class) => {
-                        Ok(Val::LoxInstance(class.clone(), RefCell::new(HashMap::new()).into()))
-                    }
-                    _ => Err(EvalErr::TypeError)
+                    Val::LoxClass(class) => Ok(Val::LoxInstance(
+                        class.clone(),
+                        RefCell::new(HashMap::new()).into(),
+                    )),
+                    _ => Err(EvalErr::TypeError),
                 }
             }
             Self::Get(target, id) => {
@@ -213,7 +227,6 @@ impl Expr {
                     this_scope.declare("this".into(), target.clone());
                     ret.2 = Rc::new(RefCell::new(this_scope));
                     Ok(Val::LoxFunc(ret))
-
                 } else {
                     Err(EvalErr::UndefinedVariable)
                 }
@@ -227,9 +240,7 @@ impl Expr {
                 borrow.insert(id.clone(), val.clone());
                 Ok(val)
             }
-            Self::This(depth) => {
-                Ok((*scope).borrow().get("this".into(), *depth))
-            }
+            Self::This(depth) => Ok((*scope).borrow().get("this", *depth)),
         }
     }
 }
@@ -239,7 +250,7 @@ pub enum EvalErr {
     TypeError,
     UndefinedVariable,
     WrongArgumentCount(usize, usize),
-    UnexpectedReturn
+    UnexpectedReturn,
 }
 
 impl Display for EvalErr {

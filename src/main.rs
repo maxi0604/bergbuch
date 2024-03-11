@@ -2,7 +2,8 @@ use std::{
     env::args_os,
     fs,
     io::{stdin, stdout, IsTerminal, Write},
-    path::Path, process::ExitCode,
+    path::Path,
+    process::ExitCode,
 };
 
 use bergbuch::interpreter::Interpreter;

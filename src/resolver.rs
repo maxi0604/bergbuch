@@ -1,7 +1,7 @@
+use crate::expr::Expr;
 use std::collections::HashMap;
+use std::fmt::{self, Display};
 use std::rc::Rc;
-use std::fmt::{Display, self};
-use crate::expr::{Class, Expr};
 
 use crate::statement::Stmt;
 
@@ -15,14 +15,14 @@ pub enum ResolverErr {
     UseWhileDeclaring,
     UndeclaredVar(Rc<str>),
     UndefinedVar,
-    RedeclarationInSameScope
+    RedeclarationInSameScope,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassType {
     None,
     Class,
-    Subclass
+    Subclass,
 }
 
 type ErrList = Vec<ResolverErr>;
@@ -37,7 +37,6 @@ impl Display for ResolverErr {
     }
 }
 
-
 impl ResolverScope {
     fn new() -> Self {
         Default::default()
@@ -45,7 +44,7 @@ impl ResolverScope {
 }
 
 pub struct Resolver {
-    stack: Vec<ResolverScope>
+    stack: Vec<ResolverScope>,
 }
 
 impl Default for Resolver {
@@ -57,7 +56,9 @@ impl Default for Resolver {
 impl Resolver {
     pub fn new() -> Self {
         // Just the global scope is present.
-        let mut result = Self { stack: vec![Default::default()] };
+        let mut result = Self {
+            stack: vec![Default::default()],
+        };
         result.define("clock".into());
         result
     }
@@ -88,7 +89,9 @@ impl Resolver {
                 self.resolve_expr(cond, errs);
                 self.resolve_stmt(body, errs, in_class);
             }
-            Stmt::Expr(expr) | Stmt::Print(expr) | Stmt::Return(Some(expr)) => self.resolve_expr(expr, errs),
+            Stmt::Expr(expr) | Stmt::Print(expr) | Stmt::Return(Some(expr)) => {
+                self.resolve_expr(expr, errs)
+            }
             Stmt::Block(stmts) => {
                 self.push_scope();
                 for inner in stmts.iter_mut() {
@@ -149,7 +152,7 @@ impl Resolver {
                 self.resolve_expr(l, errs);
                 self.resolve_expr(r, errs);
             }
-            Expr::Literal(_) => {},
+            Expr::Literal(_) => {}
             Expr::Assignment(id, dist, val) => {
                 self.resolve_expr(val, errs);
                 match self.resolve_id(id) {
@@ -172,12 +175,10 @@ impl Resolver {
                 self.resolve_expr(target, errs);
                 self.resolve_expr(val, errs);
             }
-            Expr::This(dist) => {
-                match self.resolve_id("this") {
-                    Ok(res) => *dist = res,
-                    Err(err) => errs.push(err),
-                }
-            }
+            Expr::This(dist) => match self.resolve_id("this") {
+                Ok(res) => *dist = res,
+                Err(err) => errs.push(err),
+            },
         }
     }
 
@@ -202,14 +203,28 @@ impl Resolver {
     }
 
     fn declare(&mut self, id: Rc<str>) {
-        self.stack.last_mut().expect("Popped global scope").vars.insert(id, false);
+        self.stack
+            .last_mut()
+            .expect("Popped global scope")
+            .vars
+            .insert(id, false);
     }
 
     fn define(&mut self, id: Rc<str>) {
-        self.stack.last_mut().expect("Popped global scope").vars.insert(id, true);
+        self.stack
+            .last_mut()
+            .expect("Popped global scope")
+            .vars
+            .insert(id, true);
     }
 
     fn currently_declaring(&mut self, id: &str) -> bool {
-        !self.stack.last_mut().expect("Popped global scope").vars.get(id).unwrap_or(&true)
+        !self
+            .stack
+            .last_mut()
+            .expect("Popped global scope")
+            .vars
+            .get(id)
+            .unwrap_or(&true)
     }
 }

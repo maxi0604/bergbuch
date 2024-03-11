@@ -125,7 +125,6 @@ impl<'a> Parser<'a> {
                 None,
             ))
         }
-
     }
 
     fn consume_pair(&mut self, tok: &TokenType, other: &Token) -> Result<(), ParseErr> {
@@ -165,8 +164,7 @@ impl<'a> Parser<'a> {
             self.function()
         } else if self.match_next_lits([TokenType::Class]) {
             self.class()
-        }
-        else {
+        } else {
             self.statement()
         }
     }
@@ -185,7 +183,6 @@ impl<'a> Parser<'a> {
         } else {
             Err(ParseErr::new(ParseErrType::NotLvalue, self.peek().cloned()))
         }
-
     }
 
     fn class(&mut self) -> Result<Stmt, ParseErr> {
@@ -200,7 +197,6 @@ impl<'a> Parser<'a> {
         self.consume_pair(&TokenType::RightBrace, &left_brace)?;
 
         Ok(Stmt::Class(id, funs))
-
     }
 
     fn function(&mut self) -> Result<Stmt, ParseErr> {
@@ -288,7 +284,6 @@ impl<'a> Parser<'a> {
             Some(self.expression()?)
         };
 
-
         self.consume_pair(&TokenType::RightParen, &left_paren)?;
         let mut body = self.statement()?;
 
@@ -374,7 +369,6 @@ impl<'a> Parser<'a> {
         }
 
         expr
-
     }
 
     fn equality(&mut self) -> ExprResult {

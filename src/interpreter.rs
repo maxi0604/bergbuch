@@ -1,10 +1,10 @@
-use crate::resolver::{Resolver, ResolverErr};
-use crate::scanner::scan;
 use crate::expr::{EvalErr, NativeCall, Val};
 use crate::parser::{ParseErr, Parser};
+use crate::resolver::{Resolver, ResolverErr};
+use crate::scanner::scan;
 use crate::scope::{Scope, ScopeLink};
 use crate::statement::Stmt;
-use std::{cell::RefCell, rc::Rc, fmt};
+use std::{cell::RefCell, fmt, rc::Rc};
 
 pub struct Interpreter {
     global_scope: ScopeLink,
@@ -27,7 +27,7 @@ pub enum InterpretErr {
 impl fmt::Display for InterpretErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::EvalErr(x)  => write!(f, "{x}"),
+            Self::EvalErr(x) => write!(f, "{x}"),
             Self::ParseErr(x) => write!(f, "{x}"),
             Self::ResolverErrs(x) => {
                 for err in x.iter() {
@@ -36,9 +36,7 @@ impl fmt::Display for InterpretErr {
                 Ok(())
             }
         }
-
     }
-
 }
 
 impl From<ParseErr> for InterpretErr {
@@ -81,7 +79,7 @@ impl Interpreter {
         global_scope.declare("clock".into(), Val::NativeFunc(NativeCall::Clock));
         Interpreter {
             global_scope: Rc::new(RefCell::new(global_scope)),
-            resolver: Resolver::new()
+            resolver: Resolver::new(),
         }
     }
 
