@@ -7,8 +7,10 @@ use std::{
 };
 
 use bergbuch::interpreter::Interpreter;
-use rustyline::{error::ReadlineError};
-use rustyline::{DefaultEditor};
+use rustyline::{error::ReadlineError, Cmd, ConditionalEventHandler, Event, EventContext, EventHandler, Highlighter, KeyEvent, Movement, RepeatCount};
+use rustyline::{Editor, DefaultEditor};
+use rustyline::validate::MatchingBracketValidator;
+use rustyline::{Validator, Helper, Completer, Hinter};
 use std::error::Error;
 
 fn main() -> ExitCode {
@@ -38,6 +40,21 @@ fn run_file(path: &Path) {
     }
 }
 
+struct TabEventHandler;
+impl ConditionalEventHandler for TabEventHandler {
+    fn handle(&self, _: &Event, n: RepeatCount, _: bool, _: &EventContext) -> Option<Cmd> {
+        Some(Cmd::Indent(Movement::WholeLine))
+    }
+}
+
+#[derive(Helper, Completer, Hinter, Highlighter, Validator)]
+struct MyHelper {
+    #[rustyline(Completer)]
+    completer: (),
+    #[rustyline(Validator)]
+    validator: MatchingBracketValidator,
+}
+
 fn run_prompt() -> Result<(), Box<dyn Error>> {
     let mut interpreter = Interpreter::new();
     if !stdin().is_terminal() {
@@ -47,7 +64,17 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mut rl = DefaultEditor::new()?;
+    let h = MyHelper {
+        completer: (),
+        validator: MatchingBracketValidator::new()
+    };
+    let mut rl = Editor::new()?;
+    rl.set_helper(Some(h));
+    rl.bind_sequence(
+        KeyEvent::from('\t'),
+        EventHandler::Conditional(Box::new(TabEventHandler)),
+    );
+
     loop {
         let readline = rl.readline("> ");
         match readline {
