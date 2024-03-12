@@ -1,7 +1,7 @@
 use std::{
     env::args_os,
     fs,
-    io::{stdin, stdout, IsTerminal, Write},
+    io::{stdin, stdout, IsTerminal, Write, self},
     path::Path,
     process::ExitCode,
 };
@@ -39,8 +39,15 @@ fn run_file(path: &Path) {
 }
 
 fn run_prompt() -> Result<(), Box<dyn Error>> {
-    let mut rl = DefaultEditor::new()?;
     let mut interpreter = Interpreter::new();
+    if !stdin().is_terminal() {
+        let program = io::read_to_string(stdin().lock())?;
+        if let Err(err) = interpreter.run(program.as_str()) {
+            println!("error: {}", err);
+        }
+    }
+
+    let mut rl = DefaultEditor::new()?;
     loop {
         let readline = rl.readline("> ");
         match readline {
