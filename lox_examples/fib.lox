@@ -1,12 +1,9 @@
-fun returnsClass() {
-    class Classy {
-        init() {
-            print "That's a nice class, innit";
-        }
-    }
-
-    return Classy;
+fun fib(n) {
+  if (n < 2) return n;
+  return fib(n - 1) + fib(n - 2);
 }
 
-var Classy = returnsClass();
-Classy();
+var before = clock();
+print fib(25);
+var after = clock();
+print after - before;

@@ -13,7 +13,7 @@ pub enum Stmt {
     While(ExprRef, Box<Stmt>),
     Return(Option<ExprRef>),
     Fun(Rc<str>, Vec<Rc<str>>, Vec<Stmt>),
-    Class(Rc<str>, Vec<Stmt>),
+    Class(Rc<str>, Option<(Rc<str>, usize)>, Vec<Stmt>),
 }
 
 pub enum ExecInterruption {
@@ -74,18 +74,31 @@ impl Stmt {
                     scope.clone(),
                 )),
             ),
-            Self::Class(id, funs) => {
+            Self::Class(id, parent, funs) => {
                 let mut funcs = FxHashMap::default();
+                let (parent_class, par_scope) = if let Some((parent, dist)) = parent {
+                    let Val::LoxClass(par_class) = (*scope).borrow().get(parent, *dist) else {
+                        return Err(ExecInterruption::Err(EvalErr::TypeError));
+                    };
+
+                    let mut par_scope = Scope::new_child(scope.clone());
+                    par_scope.declare("super".into(), Val::LoxClass(par_class.clone()));
+                    let par_scope = Rc::new(RefCell::new(par_scope));
+                    (Some(par_class), par_scope)
+                } else {
+                    (None, scope.clone())
+                };
+
                 for fun in funs.iter() {
                     let Self::Fun(id, args, body) = fun else {
                         panic!("Classes must only contain functions. Did the parser mess up?");
                     };
-                    let func = Func(args.clone().into(), body.clone().into(), scope.clone());
+                    let func = Func(args.clone().into(), body.clone().into(), par_scope.clone());
                     funcs.insert(id.clone(), func);
                 }
                 (*scope)
                     .borrow_mut()
-                    .declare(id.clone(), Val::LoxClass(Class(funcs).into()))
+                    .declare(id.clone(), Val::LoxClass(Class(parent_class, funcs).into()))
             }
         }
         Ok(())

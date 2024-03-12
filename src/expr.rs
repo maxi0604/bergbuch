@@ -1,8 +1,6 @@
+use core::panic;
 use std::{
-    cell::RefCell,
-    fmt::{self, Display, Write},
-    rc::Rc,
-    time::{self, Duration},
+    borrow::Borrow, cell::{Ref, RefCell}, fmt::{self, Display, Write}, rc::Rc, time::{self, Duration}
 };
 
 use crate::token::TokenType;
@@ -47,7 +45,7 @@ impl NativeCall {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Func(pub Rc<[Rc<str>]>, pub Rc<[Stmt]>, pub ScopeLink);
 impl Func {
-    fn bind(&mut self, to: ScopeLink) {
+    pub fn bind(&mut self, to: ScopeLink) {
         self.2 = to;
     }
 
@@ -81,7 +79,28 @@ impl Func {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Class(pub FxHashMap<Rc<str>, Func>);
+pub struct Class(pub Option<Rc<Class>>, pub FxHashMap<Rc<str>, Func>);
+impl Class {
+    fn get_method(&self, id: &str) -> Option<Func> {
+        let mut i = 0;
+
+        if let Some(val) = self.1.get(id) {
+            return Some(val.clone());
+        }
+
+        let mut cur = self;
+        while let Some(new) = &cur.0 {
+            cur = new;
+            if let Some(val) = cur.1.get(id) {
+                return Some(val.clone());
+            }
+            println!("seit {} iterationen gefangener von get_method", i);
+            i += 1;
+        }
+        None
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Val {
     String(Rc<str>),
@@ -134,6 +153,7 @@ pub enum Expr {
     Get(ExprRef, Rc<str>),
     Set(ExprRef, Rc<str>, ExprRef),
     This(usize),
+    Super(Rc<str>, usize),
 }
 
 impl Expr {
@@ -223,7 +243,7 @@ impl Expr {
                             RefCell::new(FxHashMap::default()).into(),
                         );
 
-                        if let Some(init) = class.0.get("init") {
+                        if let Some(init) = class.get_method("init") {
                             let mut init = init.clone();
                             let mut this_scope = Scope::new_child(scope.clone());
                             this_scope.declare("this".into(), val.clone());
@@ -237,15 +257,18 @@ impl Expr {
             }
             Self::Get(target, id) => {
                 let target = target.eval(scope.clone())?;
-                let Val::LoxInstance(ref class, ref values) = target else {
+
+                let Val::LoxInstance(class, values) = target.clone() else {
                     return Err(EvalErr::TypeError);
                 };
-                let borrow = (*values).borrow();
-                if let Some(val) = borrow.get(id) {
+
+                let bor = (*values).borrow();
+
+                if let Some(val) = bor.get(id) {
                     Ok(val.clone())
-                } else if let Some(class_func) = class.0.get(id) {
+                } else if let Some(class_func) = class.get_method(id) {
                     let mut ret = class_func.clone();
-                    let mut this_scope = Scope::new_child(scope);
+                    let mut this_scope = Scope::new_child(class_func.2);
                     this_scope.declare("this".into(), target.clone());
                     ret.bind(Rc::new(RefCell::new(this_scope)));
                     Ok(Val::LoxFunc(ret))
@@ -263,6 +286,21 @@ impl Expr {
                 Ok(val)
             }
             Self::This(depth) => Ok((*scope).borrow().get("this", *depth)),
+            Self::Super(id, depth) => {
+                let bor = (*scope).borrow();
+                let Val::LoxClass(class) = bor.get("super", *depth) else {
+                    panic!("super in the relevant scope was not a class.")
+                };
+
+                let class_func = class.get_method(id).ok_or(EvalErr::UndefinedVariable)?;
+                let mut ret = class_func.clone();
+                let func_scope = class_func.2;
+                let this = bor.get("this", *depth - 1);
+                let mut this_scope = Scope::new_child(func_scope.clone());
+                this_scope.declare("this".into(), this.clone());
+                ret.bind(Rc::new(RefCell::new(this_scope)));
+                Ok(Val::LoxFunc(ret))
+            },
         }
     }
 }

@@ -348,3 +348,68 @@ result = book.name;
         Some(Val::String("Crafting Interpreters".into()))
     );
 }
+
+
+#[test]
+fn inherit_method() {
+    let mut interp = Interpreter::new();
+    interp
+        .run(
+            "
+var result;
+class A {
+    method() {
+        result = 42;
+    }
+}
+
+class B < A {
+}
+var b = B();
+b.method();
+",
+        )
+        .unwrap();
+
+    assert_eq!(
+        interp.get_global("result"),
+        Some(Val::Num(42.0))
+    );
+}
+
+
+#[test]
+fn super_access() {
+    let mut interp = Interpreter::new();
+    interp
+        .run(
+            "
+var step1;
+var step2;
+class Doughnut {
+  cook() {
+    step1 = \"Fry until golden brown.\";
+  }
+}
+
+class BostonCream < Doughnut {
+  cook() {
+    super.cook();
+    step2 = \"Pipe full of custard and coat with chocolate.\";
+  }
+}
+
+BostonCream().cook();
+",
+        )
+        .unwrap();
+
+    assert_eq!(
+        interp.get_global("step1"),
+        Some(Val::String("Fry until golden brown.".into()))
+    );
+    assert_eq!(
+        interp.get_global("step2"),
+        Some(Val::String("Pipe full of custard and coat with chocolate.".into()))
+    );
+}

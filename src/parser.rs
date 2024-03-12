@@ -187,6 +187,12 @@ impl<'a> Parser<'a> {
 
     fn class(&mut self) -> Result<Stmt, ParseErr> {
         let id = self.consume_identifier()?;
+        let parent = if self.match_next_lits([TokenType::Less]) {
+            Some(self.consume_identifier()?)
+        } else {
+            None
+        };
+
         let left_brace = self.consume(&TokenType::LeftBrace)?.clone();
         let mut funs = vec![];
 
@@ -196,7 +202,7 @@ impl<'a> Parser<'a> {
 
         self.consume_pair(&TokenType::RightBrace, &left_brace)?;
 
-        Ok(Stmt::Class(id, funs))
+        Ok(Stmt::Class(id, parent.map(|x| (x, 0)), funs))
     }
 
     fn function(&mut self) -> Result<Stmt, ParseErr> {
@@ -487,6 +493,10 @@ impl<'a> Parser<'a> {
             }
             TokenType::Identifier(x) => Expr::Variable(x.clone(), 0),
             TokenType::This => Expr::This(0),
+            TokenType::Super => {
+                self.consume(&TokenType::Dot)?;
+                Expr::Super(self.consume_identifier()?, 0)
+            }
             // TODO: Error reporting, synchronize()
             _ => {
                 return Err(ParseErr::new(

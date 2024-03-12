@@ -14,6 +14,8 @@ struct ResolverScope {
 pub enum ResolverErr {
     UseWhileDeclaring,
     UndeclaredVar(Rc<str>),
+    ThisOutsideClass,
+    SuperOutsideSubclass,
     UndefinedVar,
     RedeclarationInSameScope,
 }
@@ -31,7 +33,9 @@ impl Display for ResolverErr {
         match self {
             Self::UseWhileDeclaring => write!(f, "Using variable in its declaration."),
             Self::UndeclaredVar(id) => write!(f, "Undeclared variable `{id}`"),
-            Self::UndefinedVar => write!(f, "Type error."),
+            Self::ThisOutsideClass => write!(f, "`this` may only be used inside of classes."),
+            Self::SuperOutsideSubclass => write!(f, "`super` may only be used inside of derived classes."),
+            Self::UndefinedVar => write!(f, "Undefined variable."),
             Self::RedeclarationInSameScope => write!(f, "Cannot redeclare variable in same scope."),
         }
     }
@@ -45,6 +49,7 @@ impl ResolverScope {
 
 pub struct Resolver {
     stack: Vec<ResolverScope>,
+    class: ClassType
 }
 
 impl Default for Resolver {
@@ -57,6 +62,7 @@ impl Resolver {
     pub fn new() -> Self {
         // Just the global scope is present.
         let mut result = Self {
+            class: ClassType::None,
             stack: vec![Default::default()],
         };
         result.define("clock".into());
@@ -66,7 +72,7 @@ impl Resolver {
         let mut result = vec![];
 
         for stmt in program {
-            self.resolve_stmt(stmt, &mut result, ClassType::None);
+            self.resolve_stmt(stmt, &mut result);
         }
 
         if !result.is_empty() {
@@ -76,18 +82,18 @@ impl Resolver {
         }
     }
 
-    fn resolve_stmt(&mut self, stmt: &mut Stmt, errs: &mut ErrList, in_class: ClassType) {
+    fn resolve_stmt(&mut self, stmt: &mut Stmt, errs: &mut ErrList) {
         match stmt {
             Stmt::If(cond, if_stmt, else_stmt) => {
                 self.resolve_expr(cond, errs);
-                self.resolve_stmt(if_stmt, errs, in_class);
+                self.resolve_stmt(if_stmt, errs);
                 if let Some(else_stmt) = else_stmt {
-                    self.resolve_stmt(else_stmt, errs, in_class);
+                    self.resolve_stmt(else_stmt, errs);
                 }
             }
             Stmt::While(cond, body) => {
                 self.resolve_expr(cond, errs);
-                self.resolve_stmt(body, errs, in_class);
+                self.resolve_stmt(body, errs);
             }
             Stmt::Expr(expr) | Stmt::Print(expr) | Stmt::Return(Some(expr)) => {
                 self.resolve_expr(expr, errs)
@@ -95,7 +101,7 @@ impl Resolver {
             Stmt::Block(stmts) => {
                 self.push_scope();
                 for inner in stmts.iter_mut() {
-                    self.resolve_stmt(inner, errs, in_class);
+                    self.resolve_stmt(inner, errs);
                 }
                 self.pop_scope();
             }
@@ -121,18 +127,41 @@ impl Resolver {
                 }
 
                 for inner in body.iter_mut() {
-                    self.resolve_stmt(inner, errs, in_class);
+                    self.resolve_stmt(inner, errs);
                 }
                 self.pop_scope();
             }
-            Stmt::Class(id, funs) => {
+            Stmt::Class(id, parent, funs) => {
                 self.declare(id.clone());
+                if let Some((ref par, ref mut dist)) = parent {
+                    match self.resolve_id(par) {
+                        Ok(res) => *dist = res,
+                        Err(err) => errs.push(err),
+                    }
+                }
+                if parent.is_some() {
+                    self.class = ClassType::Subclass;
+                    self.push_scope();
+                    self.declare("super".into());
+                    self.define("super".into());
+                } else {
+                    self.class = ClassType::Class;
+                }
+
                 self.push_scope();
                 self.declare("this".into());
                 self.define("this".into());
+                let old_class = self.class;
+
                 for fun in funs.iter_mut() {
-                    self.resolve_stmt(fun, errs, ClassType::Class);
+                    self.resolve_stmt(fun, errs);
                 }
+
+                self.class = old_class;
+                if parent.is_some() {
+                    self.pop_scope();
+                }
+
                 self.pop_scope();
                 self.define(id.clone());
             }
@@ -177,7 +206,11 @@ impl Resolver {
             }
             Expr::This(dist) => match self.resolve_id("this") {
                 Ok(res) => *dist = res,
-                Err(err) => errs.push(err),
+                Err(_) => errs.push(ResolverErr::ThisOutsideClass),
+            },
+            Expr::Super(_, dist) => match self.resolve_id("super") {
+                Ok(res) => *dist = res,
+                Err(_) => errs.push(ResolverErr::SuperOutsideSubclass),
             },
         }
     }
