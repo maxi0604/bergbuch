@@ -1,14 +1,14 @@
 use std::{
     env::args_os,
     fs,
-    io::{stdin, stdout, IsTerminal, Write, self},
+    io::{stdin, IsTerminal, self},
     path::Path,
     process::ExitCode,
 };
 
 use bergbuch::interpreter::Interpreter;
 use rustyline::{error::ReadlineError, Cmd, ConditionalEventHandler, Event, EventContext, EventHandler, Highlighter, KeyEvent, Movement, RepeatCount};
-use rustyline::{Editor, DefaultEditor};
+use rustyline::{Editor};
 use rustyline::validate::MatchingBracketValidator;
 use rustyline::{Validator, Helper, Completer, Hinter};
 use std::error::Error;
@@ -42,7 +42,7 @@ fn run_file(path: &Path) {
 
 struct TabEventHandler;
 impl ConditionalEventHandler for TabEventHandler {
-    fn handle(&self, _: &Event, n: RepeatCount, _: bool, _: &EventContext) -> Option<Cmd> {
+    fn handle(&self, _: &Event, _n: RepeatCount, _: bool, _: &EventContext) -> Option<Cmd> {
         Some(Cmd::Indent(Movement::WholeLine))
     }
 }

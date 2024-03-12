@@ -1,6 +1,6 @@
 use core::panic;
 use std::{
-    borrow::Borrow, cell::{Ref, RefCell}, fmt::{self, Display, Write}, rc::Rc, time::{self, Duration}
+    cell::RefCell, fmt::{self, Display, Write}, rc::Rc, time::{self, Duration}
 };
 
 use crate::token::TokenType;
