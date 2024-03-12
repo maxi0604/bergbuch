@@ -46,6 +46,40 @@ impl NativeCall {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Func(pub Rc<[Rc<str>]>, pub Rc<[Stmt]>, pub ScopeLink);
+impl Func {
+    fn bind(&mut self, to: ScopeLink) {
+        self.2 = to;
+    }
+
+    fn eval_apply(&self, args: &[ExprRef], scope: ScopeLink) -> Result<Val, EvalErr> {
+        let Func(expected_args, stmts, closure) = self;
+        if args.len() != expected_args.len() {
+            return Err(EvalErr::WrongArgumentCount(
+                expected_args.len(),
+                args.len(),
+            ));
+        }
+        let child = Rc::new(RefCell::new(Scope::new_child(closure.clone())));
+        let mut bor = (*child).borrow_mut();
+        for (exp, arg) in expected_args.iter().zip(args) {
+            bor.declare(exp.clone(), arg.eval(scope.clone())?)
+        }
+        // Otherwise eval panics because a mutable borrow is held.
+        drop(bor);
+
+        for stmt in stmts.iter() {
+            match stmt.exec(child.clone()) {
+                Ok(()) => continue,
+                Err(ExecInterruption::Err(e)) => return Err(e),
+                Err(ExecInterruption::Return(Some(val))) => return Ok(val),
+                Err(ExecInterruption::Return(None)) => return Ok(Val::Nil),
+            };
+        }
+
+        Ok(Val::Nil)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct Class(pub FxHashMap<Rc<str>, Func>);
 #[derive(Debug, PartialEq, Clone)]
@@ -173,31 +207,8 @@ impl Expr {
                 let fun = fun.eval(scope.clone())?;
 
                 match fun {
-                    Val::LoxFunc(Func(expected_args, fun, closure)) => {
-                        if args.len() != expected_args.len() {
-                            return Err(EvalErr::WrongArgumentCount(
-                                expected_args.len(),
-                                args.len(),
-                            ));
-                        }
-                        let child = Rc::new(RefCell::new(Scope::new_child(closure.clone())));
-                        let mut bor = (*child).borrow_mut();
-                        for (exp, arg) in expected_args.iter().zip(args) {
-                            bor.declare(exp.clone(), arg.eval(scope.clone())?)
-                        }
-                        // Otherwise eval panics because a mutable borrow is held.
-                        drop(bor);
-
-                        for stmt in fun.iter() {
-                            match stmt.exec(child.clone()) {
-                                Ok(()) => continue,
-                                Err(ExecInterruption::Err(e)) => return Err(e),
-                                Err(ExecInterruption::Return(Some(val))) => return Ok(val),
-                                Err(ExecInterruption::Return(None)) => return Ok(Val::Nil),
-                            };
-                        }
-
-                        Ok(Val::Nil)
+                    Val::LoxFunc(x) => {
+                        x.eval_apply(args, scope)
                     }
                     Val::NativeFunc(nc) => {
                         let mut evaluated = Vec::with_capacity(args.len());
@@ -225,7 +236,7 @@ impl Expr {
                     let mut ret = class_func.clone();
                     let mut this_scope = Scope::new_child(scope.clone());
                     this_scope.declare("this".into(), target.clone());
-                    ret.2 = Rc::new(RefCell::new(this_scope));
+                    ret.bind(Rc::new(RefCell::new(this_scope)));
                     Ok(Val::LoxFunc(ret))
                 } else {
                     Err(EvalErr::UndefinedVariable)
