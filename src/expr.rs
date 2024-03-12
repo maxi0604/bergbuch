@@ -245,7 +245,7 @@ impl Expr {
 
                         if let Some(init) = class.get_method("init") {
                             let mut init = init.clone();
-                            let mut this_scope = Scope::new_child(scope.clone());
+                            let mut this_scope = Scope::new_child(init.2.clone());
                             this_scope.declare("this".into(), val.clone());
                             init.bind(Rc::new(RefCell::new(this_scope)));
                             init.eval_apply(args, scope)?;

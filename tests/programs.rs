@@ -377,7 +377,6 @@ b.method();
     );
 }
 
-
 #[test]
 fn super_access() {
     let mut interp = Interpreter::new();
@@ -413,3 +412,42 @@ BostonCream().cook();
         Some(Val::String("Pipe full of custard and coat with chocolate.".into()))
     );
 }
+
+#[test]
+fn returns_function() {
+    let mut interp = Interpreter::new();
+    interp
+        .run(
+            "
+var result1;
+var result2;
+
+fun returnsClass() {
+    class Classy {
+        init() {
+            result1 = 1;
+        }
+
+        test() {
+            result2 = 2;
+        }
+    }
+    return Classy;
+}
+
+var elem = returnsClass()();
+elem.test();
+",
+        )
+        .unwrap();
+
+    assert_eq!(
+        interp.get_global("result1"),
+        Some(Val::Num(1.0))
+    );
+    assert_eq!(
+        interp.get_global("result2"),
+        Some(Val::Num(2.0))
+    );
+}
+
