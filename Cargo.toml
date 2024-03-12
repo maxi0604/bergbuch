@@ -8,6 +8,7 @@ license = "MIT"
 
 [dependencies]
 rustc-hash = "1.1.0"
+rustyline = "14.0.0"
 
 [profile.profiler]
 inherits = "release"

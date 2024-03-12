@@ -7,17 +7,24 @@ use std::{
 };
 
 use bergbuch::interpreter::Interpreter;
+use rustyline::{error::ReadlineError};
+use rustyline::{DefaultEditor};
+use std::error::Error;
 
 fn main() -> ExitCode {
     if args_os().len() > 2 {
         eprintln!("usage: lox [file]");
-        return ExitCode::FAILURE;
+        return ExitCode::FAILURE
     }
 
     if let Some(arg) = args_os().nth(1) {
         run_file(Path::new(&arg));
     } else {
-        run_prompt();
+        return if run_prompt().is_ok() {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        }
     }
 
     ExitCode::SUCCESS
@@ -31,21 +38,22 @@ fn run_file(path: &Path) {
     }
 }
 
-fn run_prompt() {
-    let input = stdin();
+fn run_prompt() -> Result<(), Box<dyn Error>> {
+    let mut rl = DefaultEditor::new()?;
     let mut interpreter = Interpreter::new();
     loop {
-        if input.is_terminal() {
-            print!("> ");
-            stdout().flush().unwrap();
-        }
-        let mut line = String::new();
-        let len = input.read_line(&mut line).unwrap();
-        if len == 0 {
-            break;
-        }
-        if let Err(err) = interpreter.run(&line) {
-            println!("error: {}", err);
+        let readline = rl.readline("> ");
+        match readline {
+            Ok(line) => {
+                let _ = rl.add_history_entry(line.as_str());
+                if let Err(err) = interpreter.run(&line) {
+                    println!("error: {}", err);
+                }
+            },
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => return Ok(()),
+            Err(err) => {
+                break Err(Box::new(err));
+            }
         }
     }
 }
