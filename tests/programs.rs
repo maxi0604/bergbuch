@@ -451,3 +451,61 @@ elem.test();
     );
 }
 
+#[test]
+fn bound_method() {
+    let mut interp = Interpreter::new();
+    interp
+        .run(
+            "
+var result;
+class Person {
+  sayName() {
+    result = this.name;
+  }
+}
+
+var jane = Person();
+jane.name = 42; // Sorry, Jane
+var method = jane.sayName;
+method();
+",
+        )
+        .unwrap();
+
+    assert_eq!(
+        interp.get_global("result"),
+        Some(Val::Num(42.0))
+    );
+}
+
+
+#[test]
+fn bound_function_shadows_method() {
+    let mut interp = Interpreter::new();
+    interp
+        .run(
+            "
+var result;
+class Person {
+  sayName() {
+    result = this.name;
+  }
+}
+
+var jane = Person();
+jane.name = 42;
+
+var bill = Person();
+bill.name = 1337;
+
+bill.sayName = jane.sayName;
+bill.sayName(); // ?
+",
+        )
+        .unwrap();
+
+    assert_eq!(
+        interp.get_global("result"),
+        Some(Val::Num(42.0))
+    );
+}
