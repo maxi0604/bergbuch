@@ -4,13 +4,14 @@
 - It prevents mindless copy-pasting and deepens understanding
 - Rust
 
-# Part 1
-Part 1 is somewhat completed. You can run it or its test suite as follows.
+# Part 2
+Part 2 (the tree walk interpreter) is somewhat complete. You can run it or its test suite as follows.
 
 ```sh
 cargo run [file.lox]
 cargo test
 ```
+On the same machine, it's about three times slower than the author's `jlox` implementation (after replacing the default `HashMap  with `FxHashMap`). I think this is fair, given that it has a simple object model with reference counting instead of decades of JVM optimizations under the hood.
 
 # License
 My code is licensed under MIT. If any significant (i. e. large enough to not be covered as a quote) parts of the book end up here, I do not intend to unlawfully relicense them.
