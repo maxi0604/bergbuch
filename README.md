@@ -3,6 +3,8 @@
 
 - It prevents mindless copy-pasting and deepens understanding
 - Rust
+# Part 1
+Part 1 is just the language specification, nothing to program there.
 
 # Part 2
 Part 2 (the tree walk interpreter) is somewhat complete. You can run it or its test suite as follows.
