@@ -1,0 +1,12 @@
+fun returnsClass() {
+    class Classy {
+        init() {
+            print "That's a nice class, innit";
+        }
+    }
+
+    return Classy;
+}
+
+var Classy = returnsClass();
+Classy();

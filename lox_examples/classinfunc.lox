@@ -1,0 +1,15 @@
+fun returnsClass() {
+    class Classy {
+        init() {
+            print "Nice class, innit";
+        }
+
+        test() {
+            print "Not my cup of tea";
+        }
+    }
+    return Classy;
+}
+
+var elem = returnsClass()();
+elem.test();
