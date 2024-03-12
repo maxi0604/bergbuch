@@ -149,7 +149,7 @@ impl Expr {
                     return Ok(l);
                 }
 
-                let r = y.eval(scope.clone())?;
+                let r = y.eval(scope)?;
                 match (op, l, r) {
                     (TokenType::Plus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a + b)),
                     (TokenType::Minus, Val::Num(a), Val::Num(b)) => Ok(Val::Num(a - b)),
@@ -217,10 +217,21 @@ impl Expr {
                         }
                         nc.call(&evaluated)
                     }
-                    Val::LoxClass(class) => Ok(Val::LoxInstance(
-                        class.clone(),
-                        RefCell::new(FxHashMap::default()).into(),
-                    )),
+                    Val::LoxClass(class) => {
+                        let val = Val::LoxInstance(
+                            class.clone(),
+                            RefCell::new(FxHashMap::default()).into(),
+                        );
+
+                        if let Some(init) = class.0.get("init") {
+                            let mut init = init.clone();
+                            let mut this_scope = Scope::new_child(scope.clone());
+                            this_scope.declare("this".into(), val.clone());
+                            init.bind(Rc::new(RefCell::new(this_scope)));
+                            init.eval_apply(args, scope)?;
+                        }
+                        Ok(val)
+                    }
                     _ => Err(EvalErr::TypeError),
                 }
             }
@@ -234,7 +245,7 @@ impl Expr {
                     Ok(val.clone())
                 } else if let Some(class_func) = class.0.get(id) {
                     let mut ret = class_func.clone();
-                    let mut this_scope = Scope::new_child(scope.clone());
+                    let mut this_scope = Scope::new_child(scope);
                     this_scope.declare("this".into(), target.clone());
                     ret.bind(Rc::new(RefCell::new(this_scope)));
                     Ok(Val::LoxFunc(ret))
@@ -247,7 +258,7 @@ impl Expr {
                     return Err(EvalErr::TypeError);
                 };
                 let mut borrow = (*vals).borrow_mut();
-                let val = val.eval(scope.clone())?;
+                let val = val.eval(scope)?;
                 borrow.insert(id.clone(), val.clone());
                 Ok(val)
             }
