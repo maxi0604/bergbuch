@@ -509,3 +509,20 @@ bill.sayName(); // ?
         Some(Val::Num(42.0))
     );
 }
+
+#[test]
+fn order_of_operations() {
+    let mut interp = Interpreter::new();
+    interp
+        .run(
+            "
+var result = 6/2*(1+2);
+",
+        )
+        .unwrap();
+
+    assert_eq!(
+        interp.get_global("result"),
+        Some(Val::Num(9.0))
+    );
+}
