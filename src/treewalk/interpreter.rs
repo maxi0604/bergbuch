@@ -1,9 +1,9 @@
-use crate::expr::{EvalErr, NativeCall, Val};
-use crate::parser::{ParseErr, Parser};
-use crate::resolver::{Resolver, ResolverErr};
-use crate::scanner::scan;
-use crate::scope::{Scope, ScopeLink};
-use crate::statement::Stmt;
+use super::expr::{EvalErr, NativeCall, Val};
+use super::parser::{ParseErr, Parser};
+use super::resolver::{Resolver, ResolverErr};
+use super::scanner::scan;
+use super::scope::{Scope, ScopeLink};
+use super::statement::Stmt;
 use std::{cell::RefCell, fmt, rc::Rc};
 
 pub struct Interpreter {

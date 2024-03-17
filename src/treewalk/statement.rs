@@ -1,5 +1,5 @@
-use crate::expr::{Class, EvalErr, ExprRef, Func, Val};
-use crate::scope::{Scope, ScopeLink};
+use super::expr::{Class, EvalErr, ExprRef, Func, Val};
+use super::scope::{Scope, ScopeLink};
 use std::{cell::RefCell, rc::Rc};
 use rustc_hash::FxHashMap;
 

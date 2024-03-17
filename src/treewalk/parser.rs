@@ -1,6 +1,6 @@
-use crate::expr::*;
-use crate::statement::Stmt;
-use crate::token::*;
+use super::expr::*;
+use super::statement::Stmt;
+use super::token::*;
 
 use std::{fmt, fmt::Display, rc::Rc};
 

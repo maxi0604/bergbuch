@@ -6,7 +6,7 @@ use std::{
     process::ExitCode,
 };
 
-use bergbuch::interpreter::Interpreter;
+use bergbuch::treewalk::interpreter::Interpreter;
 use rustyline::{error::ReadlineError, Cmd, ConditionalEventHandler, Event, EventContext, EventHandler, Highlighter, KeyEvent, Movement, RepeatCount};
 use rustyline::{Editor};
 use rustyline::validate::MatchingBracketValidator;

@@ -3,8 +3,8 @@ use std::{
     cell::RefCell, fmt::{self, Display, Write}, rc::Rc, time::{self, Duration}
 };
 
-use crate::token::TokenType;
-use crate::{
+use super::token::TokenType;
+use super::{
     scope::{Scope, ScopeLink},
     statement::{ExecInterruption, Stmt},
 };

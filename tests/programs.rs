@@ -1,5 +1,5 @@
-use bergbuch::expr::Val;
-use bergbuch::interpreter::Interpreter;
+use bergbuch::treewalk::expr::Val;
+use bergbuch::treewalk::interpreter::Interpreter;
 
 #[test]
 fn volume() {

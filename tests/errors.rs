@@ -1,6 +1,6 @@
-use bergbuch::interpreter::{InterpretErr, Interpreter};
-use bergbuch::parser::ParseErrType;
-use bergbuch::resolver::ResolverErr;
+use bergbuch::treewalk::interpreter::{InterpretErr, Interpreter};
+use bergbuch::treewalk::parser::ParseErrType;
+use bergbuch::treewalk::resolver::ResolverErr;
 
 #[test]
 fn scopes_separated() {

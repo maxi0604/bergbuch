@@ -1,4 +1,4 @@
-use crate::token::*;
+use super::token::*;
 struct Scanner<'a> {
     // TODO: Sucky string representation given that we don't usually need to index further than 2 away
     // but it will have to do.

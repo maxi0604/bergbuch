@@ -1,9 +1,9 @@
-use crate::expr::Expr;
+use super::expr::Expr;
 use std::fmt::{self, Display};
 use std::rc::Rc;
 use rustc_hash::FxHashMap;
 
-use crate::statement::Stmt;
+use super::statement::Stmt;
 
 #[derive(Default)]
 struct ResolverScope {

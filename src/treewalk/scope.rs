@@ -1,4 +1,4 @@
-use crate::expr::Val;
+use super::expr::Val;
 use std::{cell::RefCell, rc::Rc};
 use rustc_hash::FxHashMap;
 
