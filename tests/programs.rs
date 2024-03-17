@@ -378,7 +378,7 @@ b.method();
 }
 
 #[test]
-fn super_access() {
+fn this_and_super_access() {
     let mut interp = Interpreter::new();
     interp
         .run(
@@ -387,6 +387,7 @@ var step1;
 var step2;
 class Doughnut {
   cook() {
+    this.color = \"golden brown\";
     step1 = \"Fry until golden brown.\";
   }
 }
@@ -394,11 +395,15 @@ class Doughnut {
 class BostonCream < Doughnut {
   cook() {
     super.cook();
+    this.filling = \"chocolate\";
     step2 = \"Pipe full of custard and coat with chocolate.\";
   }
 }
 
-BostonCream().cook();
+var donut = BostonCream();
+donut.cook();
+var color = donut.color;
+var filling = donut.filling;
 ",
         )
         .unwrap();
@@ -410,6 +415,14 @@ BostonCream().cook();
     assert_eq!(
         interp.get_global("step2"),
         Some(Val::String("Pipe full of custard and coat with chocolate.".into()))
+    );
+    assert_eq!(
+        interp.get_global("color"),
+        Some(Val::String("golden brown".into()))
+    );
+    assert_eq!(
+        interp.get_global("filling"),
+        Some(Val::String("chocolate".into()))
     );
 }
 
