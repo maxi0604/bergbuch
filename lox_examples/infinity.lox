@@ -1,0 +1,8 @@
+var i = 0;
+fun bottom() {
+    i = i + 1;
+    print i;
+    bottom();
+}
+
+bottom();
