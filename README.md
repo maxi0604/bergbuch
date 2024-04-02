@@ -20,4 +20,4 @@ On the same machine, it's about three times slower than the author's `jlox` impl
 My code is licensed under MIT. If any significant (i. e. large enough to not be covered as a quote) parts of the book end up here, I do not intend to unlawfully relicense them.
 
 # Contributions
-Please work through the material yourself. Fixing small or stylistic errors would be fine though.
+Please work through the material yourself. Fixing small or stylistic errors would be welcome though.
