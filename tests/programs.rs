@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use bergbuch::treewalk::expr::Val;
 use bergbuch::treewalk::interpreter::Interpreter;
 
@@ -538,4 +540,29 @@ var result = 6/2*(1+2);
         interp.get_global("result"),
         Some(Val::Num(9.0))
     );
+}
+
+
+#[test]
+fn comparisons() {
+    let mut interp = Interpreter::new();
+    interp
+        .run(
+            "
+var result0 = nil == nil;
+var result1 = 1 == 1;
+var result2 = 2 >= 1;
+var result3 = 1 <= 2;
+var result4 = 2 > 1;
+var result5 = 1 < 2;
+",
+        )
+        .unwrap();
+
+    for i in 0..=5 {
+        assert_eq!(
+            interp.get_global(&format!("result{i}")),
+            Some(Val::Bool(true))
+        );
+    }
 }
